@@ -1,14 +1,12 @@
 theory Refinement imports Main
 begin
-  section{*Monotonic Predicate Transformers*}
+  section{*Monotonic Predicate Transformers. Refinement Calculus.*}
  
   notation
     bot ("\<bottom>") and
     top ("\<top>") and
     inf (infixl "\<sqinter>" 70)
     and sup (infixl "\<squnion>" 65)
-
-  subsection{*Basic predicate transformers*}
 
   definition
     demonic :: "('a => 'b::lattice) => 'b => 'a \<Rightarrow> bool" ("[: _ :]" [0] 1000) where
@@ -123,8 +121,6 @@ begin
 
   lemma spec_angelic: "p \<sqinter> p' = \<bottom> \<Longrightarrow> ({.p.} o [:r:]) \<squnion> ({.p'.} o [:r':]) = {.p \<squnion> p'.} o [:(\<lambda> x y . p x \<longrightarrow> r x y) \<sqinter> ((\<lambda> x y . p' x \<longrightarrow> r' x y)):]"
     by (simp add: fun_eq_iff assert_def demonic_def, auto)
-
-  subsection{*Conjunctive predicate transformers*}
 
   definition "conjunctive (S::'a::complete_lattice \<Rightarrow> 'b::complete_lattice) = (\<forall> Q . S (Inf Q) = INFIMUM Q S)"
   definition "sconjunctive (S::'a::complete_lattice \<Rightarrow> 'b::complete_lattice) = (\<forall> Q . (\<exists> x . x \<in> Q) \<longrightarrow> S (Inf Q) = INFIMUM Q S)"
@@ -488,130 +484,11 @@ lemma [simp]:"conjunctive S \<Longrightarrow> S (INFIMUM X Q) = (INFIMUM X (S o 
   lemma comp_demonic_assert: "S o [:r:] o {.p.} = S o {. x. \<forall>y . r x y \<longrightarrow> p y .} o [:r:]"
     by (simp add: comp_assoc demonic_assert_comp)
 
-  subsection{*Product and Fusion of predicate transformers*}
-  
-  text{*
-  In this section we define the fusion and product operators from \cite{back:butler:1995}. 
-  The fusion of two programs $S$ and $T$ is intuitively equivalent with the parallel execution 
-  of the two programs. If $S$ and $T$ assign nondeterministically some value to some program 
-  variable $x$, then the fusion of $S$ and $T$ will assign a value to $x$ which can be assigned 
-  by both $S$ and $T$.
-*}
 
-  definition fusion :: "(('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)) \<Rightarrow> (('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)) \<Rightarrow> (('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool))" (infixl "\<parallel>" 70) where
-    "(S \<parallel> S') q x = (\<exists> (p::'a\<Rightarrow>bool) p' . p \<sqinter> p' \<le> q \<and> S p x \<and> S' p' x)"
-
-  lemma fusion_demonic: "[:r:] \<parallel> [:r':] = [:r \<sqinter> r':]"
-    by (auto simp add: fun_eq_iff fusion_def demonic_def le_fun_def)
-
-  lemma fusion_spec: "({.p.} \<circ> [:r:]) \<parallel> ({.p'.} \<circ> [:r':]) = ({.p \<sqinter> p'.} \<circ> [:r \<sqinter> r':])"
-    by (auto simp add: fun_eq_iff fusion_def assert_def demonic_def le_fun_def)
-
-  lemma fusion_assoc: "S \<parallel> (T \<parallel> U) = (S \<parallel> T) \<parallel> U"
-    proof (rule antisym, auto simp add: fusion_def)
-      fix p p' q s s' :: "'a \<Rightarrow> bool"
-      fix a
-      assume A: "p \<sqinter> p' \<le> q" and B: "s \<sqinter> s' \<le> p'"
-      assume C: "S p a" and D: "T s a" and E: "U s' a"
-      from A and B  have F: "(p \<sqinter> s) \<sqinter> s' \<le> q"
-        by (simp add: le_fun_def)
-      have "(\<exists>v v'. v \<sqinter> v' \<le> (p \<sqinter> s) \<and> S v a \<and> T v' a)"
-        by (metis C D order_refl)
-      show "\<exists>u u' . u \<sqinter> u' \<le> q \<and> (\<exists>v v'. v \<sqinter> v' \<le> u \<and> S v a \<and> T v' a) \<and> U u' a"
-        by (metis F C D E order_refl)
-    next
-      fix p p' q s s' :: "'a \<Rightarrow> bool"
-      fix a
-      assume A: "p \<sqinter> p' \<le> q" and B: "s \<sqinter> s' \<le> p"
-      assume C: "S s a" and D: "T s' a" and E: "U p' a"
-      from A and B  have F: "s \<sqinter> (s' \<sqinter> p')  \<le> q"
-        by (simp add: le_fun_def)
-      have "(\<exists>v v'. v \<sqinter> v' \<le> s' \<sqinter> p' \<and> T v a \<and> U v' a)"
-        by (metis D E eq_iff)
-      show "\<exists>u u'. u \<sqinter> u' \<le> q \<and> S u a \<and> (\<exists>v v'. v \<sqinter> v' \<le> u' \<and> T v a \<and> U v' a)"
-        by (metis F C D E order_refl)
-    qed
-
-  lemma "S \<le> T \<Longrightarrow> S' \<le> T' \<Longrightarrow> S \<parallel> S' \<le> T \<parallel> T'"
-    by (simp add: le_fun_def fusion_def, metis)
-
-  lemma "conjunctive S \<Longrightarrow> S \<parallel> \<top> = \<top>"
-    by (auto simp add: fun_eq_iff fusion_def le_fun_def conjunctive_def)
-
-  lemma fusion_spec_local: "a \<in> init \<Longrightarrow> ([: x \<leadsto> u, y . u \<in> init \<and> x = y :] \<circ> {.p.} \<circ> [:r:]) \<parallel> ({.p'.} \<circ> [:r':]) 
-      = [: x \<leadsto> u, y . u \<in> init \<and> x = y :] \<circ> {.u,x . p (u, x) \<and> p' x.} \<circ> [:u, x \<leadsto> y . r (u, x) y \<and> r' x y:]" (is "?p \<Longrightarrow> ?S = ?T")
-    proof -
-      assume "?p"
-      from this have [simp]: "(\<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x) \<and> p' x) = (\<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x)) \<sqinter> p'"
-         by auto
-      have [simp]: "(\<lambda>x (u, y). u \<in> init \<and> x = y) OO (\<lambda>(u, x) y. r (u, x) y \<and> r' x y) = (\<lambda>x (u, y). u \<in> init \<and> x = y) OO r \<sqinter> r'"
-        by auto
-      have "?S = 
-        ({. \<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x) .} \<circ> [: \<lambda>x (u, y). u \<in> init \<and> x = y :] \<circ> [: r :]) \<parallel> ({. p' .} \<circ> [: r' :])"
-        by (simp add: demonic_assert_comp)
-      also have "... =  {. (\<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x)) \<sqinter> p' .} \<circ> [: (\<lambda>x (u, y). u \<in> init \<and> x = y) OO r \<sqinter> r' :]"
-        by (simp add: comp_assoc demonic_demonic fusion_spec)
-      also have "... = ?T"
-        by (simp add: demonic_assert_comp comp_assoc demonic_demonic fusion_spec)
-      finally show ?thesis by simp
-    qed
-
-  lemma fusion_spec_local_a: "a \<in> init \<Longrightarrow> ([:x \<leadsto> u, y . u \<in> init \<and> x = y:] \<circ> {.p.} \<circ> [:r:]) \<parallel> [:r':] 
-      = ([:x \<leadsto> u, y . u \<in> init \<and> x = y:] \<circ> {.p.} \<circ> [:u, x \<leadsto> y . r (u, x) y \<and> r' x y:])"
-    by (cut_tac p' = "\<top>" and init = init and p = p and r = r and r' = r' in fusion_spec_local, auto simp add:  assert_true_skip)
-
-  lemma fusion_local_refinement:
-    "a \<in> init \<Longrightarrow> (\<And> x u y . u \<in> init \<Longrightarrow> p' x \<Longrightarrow> r (u, x) y \<Longrightarrow> r' x y) \<Longrightarrow> 
-      {.p'.} o (([:x \<leadsto> u, y . u \<in> init \<and> x = y:] \<circ> {.p.} \<circ> [:r:]) \<parallel> [:r':]) \<le> [:x \<leadsto> u, y . u \<in> init \<and> x = y:] \<circ> {.p.} \<circ> [:r:]"
-    proof -
-     assume A: "a \<in> init"
-     assume [simp]: "(\<And> x u y . u \<in> init \<Longrightarrow> p' x \<Longrightarrow> r (u, x) y \<Longrightarrow> r' x y)"
-     have " {. x. p' x \<and> (\<forall>a. a \<in> init \<longrightarrow> p (a, x)) .} \<circ> [: (\<lambda>x (u, y). u \<in> init \<and> x = y) OO (\<lambda>(u, x) y. r (u, x) y \<and> r' x y) :]
-              \<le> {. \<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x) .} \<circ> [: (\<lambda>x (u, y). u \<in> init \<and> x = y) OO r :]"
-      by (auto simp add: assert_demonic_refinement)
-    from this have " {. x. p' x \<and> (\<forall>a. a \<in> init \<longrightarrow> p (a, x)) .} \<circ> [: (\<lambda>x (u, y). u \<in> init \<and> x = y) OO (\<lambda>(u, x) y. r (u, x) y \<and> r' x y) :]
-            \<le> {. \<lambda>x. \<forall>a. a \<in> init \<longrightarrow> p (a, x) .} \<circ> [: \<lambda>x (u, y). u \<in> init \<and> x = y :] \<circ> [: r :]"
-      by (simp add: comp_assoc demonic_demonic)
-    from this have "{. p' .} \<circ> [: \<lambda>x (u, y). u \<in> init \<and> x = y :] \<circ> {. p .} \<circ> [: \<lambda>(u, x) y. r (u, x) y \<and> r' x y :] 
-            \<le> [: x \<leadsto> u, y. u \<in> init \<and> x = y :] \<circ> {. p .} \<circ> [: r :]"
-      by (simp add: demonic_assert_comp assert_demonic_comp)
-    from this have "{. p' .} \<circ> ([: x \<leadsto> (u, y) . u \<in> init \<and> x = y :] \<circ> {. p .} \<circ> [: (u, x) \<leadsto> y . r (u, x) y \<and> r' x y :]) 
-          \<le> [: x \<leadsto> (u, y) . u \<in> init \<and> x = y :] \<circ> {. p .} \<circ> [: r :]"
-      by (simp add: comp_assoc [THEN sym])
-    from A and this show ?thesis 
-      by  (unfold fusion_spec_local_a, simp)
-  qed
-
-  lemma fusion_spec_demonic: "({.p.} o [:r:]) \<parallel> [:r':] = {.p.} o [:r \<sqinter> r':]"
-    by (cut_tac p = p and p' = \<top> and r = r and r' = r' in fusion_spec, simp add: assert_true_skip)
-
-  definition Fusion :: "('c \<Rightarrow> (('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool))) \<Rightarrow> (('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool))" where
-     "Fusion S q x = (\<exists> (p::'c \<Rightarrow> 'a \<Rightarrow> bool) . (INF c . p c) \<le> q \<and> (\<forall> c . (S c) (p c) x))"
-
-
-  lemma Fusion_spec: "Fusion (\<lambda> n . {.p n.} \<circ> [:r n:]) = ({.INFIMUM \<top> p.} \<circ> [:INFIMUM \<top> r:])"
-    apply (simp add: fun_eq_iff Fusion_def assert_def demonic_def le_fun_def)
-    apply safe
-    apply blast
-    apply blast
-    by (rule_tac x = "\<lambda> x y . r x xa y" in exI, auto)
-
-    lemma demonic_conj: "[:(r::'a \<Rightarrow> 'b \<Rightarrow> bool):] o (S \<sqinter> S') = ([:r:] o S) \<sqinter> ([:r:] o  S')"
-      by (simp add: fun_eq_iff demonic_def product_def Skip_def  le_fun_def assert_def, auto)
-
-   lemma demonic_assume: "[:r:] o [.p.] = [:x \<leadsto> y . r x y \<and> p y:]"
-      by (simp add: fun_eq_iff demonic_def product_def Skip_def  le_fun_def assume_def, auto)
-    
-   lemma assume_demonic: "[.p.] o [:r:] = [:x \<leadsto> y . p x \<and> r x y:]"
-      by (simp add: fun_eq_iff demonic_def product_def Skip_def  le_fun_def assume_def, auto)
-
-    lemma [simp]: "(Fail::'a::boolean_algebra) \<le> S"
-      by (simp add: Fail_def)
 
   lemma [simp]: "prec Skip = (\<top>::'a\<Rightarrow>bool)"
     by (simp add: fun_eq_iff prec_def fail_def Skip_def)
 
-  section{*Functional Update*}
 
   definition update :: "('a \<Rightarrow> 'b) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> bool" ("[-_-]") where
     "[-f-] = [:x \<leadsto> y . y = f x:]"

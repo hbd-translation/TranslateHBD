@@ -1,8 +1,10 @@
 theory Algorithm imports Abstract Hoare
 begin
+  
+  section{*Nondeterministic Algorithm.*}
+  
   lemma not_in_set_diff: "a \<notin> set x \<Longrightarrow> x \<ominus> ys @ a # zs = x \<ominus> ys @ zs"
     by (induction x, auto)
-
 
 context BaseOperationVars
 begin

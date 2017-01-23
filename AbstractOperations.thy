@@ -1,9 +1,10 @@
 theory AbstractOperations imports ListProp
 begin
+  section{*Abstract Algebra of  Hierarchical Block Diagrams*}
+  
   locale BaseOperation = 
 
     fixes TI TO :: "'a \<Rightarrow> 'tp list"
-
 
     fixes ID :: "'tp list \<Rightarrow> 'a"
     assumes [simp]: "TI(ID ts) = ts"
@@ -54,11 +55,9 @@ begin
     assumes Sink_append: "Sink ts \<parallel> Sink ts' = Sink (ts @ ts')"
     assumes Split_append: "Split (ts @ ts') = Split ts \<parallel> Split ts' oo ID ts \<parallel> Switch ts ts' \<parallel> ID ts'"
 
-
     (*Switch parallel*)
     assumes switch_par_no_vars: "TI A = ti \<Longrightarrow> TO A = to \<Longrightarrow> TI B = ti' \<Longrightarrow> TO B = to' \<Longrightarrow> Switch ti ti' oo B \<parallel> A oo Switch to' to = A \<parallel> B"
-
-
+      
     (*feedback axioms*)
     fixes fb :: "'a \<Rightarrow> 'a"
     assumes TI_fb: "TI S = t # ts \<Longrightarrow> TO S = t # ts' \<Longrightarrow> TI (fb S) = ts" (*simp*)
@@ -261,11 +260,153 @@ begin
         finally show ?thesis by simp
         qed
 
-      definition "deterministic S = (Split (TI S) oo S \<parallel> S = S oo Split (TO S))"
+definition "deterministic S = (Split (TI S) oo S \<parallel> S = S oo Split (TO S))"
+  
+    lemma comp_assoc_middle_ext: "TI S2 = TO S1 \<Longrightarrow> TI S3 = TO S2 \<Longrightarrow> TI S4 = TO S3 \<Longrightarrow> TI S5 = TO S4 \<Longrightarrow>
+          S1 oo (S2 oo S3 oo S4) oo S5 = (S1 oo S2) oo S3 oo (S4 oo S5)"
+        by (simp add: comp_assoc)
 
-    end
+        lemma fb_gen_parallel: "\<And> S . fbtype S tsa ts ts' \<Longrightarrow> (fb^^(length tsa)) (S \<parallel> T) = ((fb^^(length tsa)) (S)) \<parallel> T"
+          apply (induction tsa, simp_all)
+          apply (simp add: funpow_swap1)
+          apply (subst fb_par_indep_fbtype)
+          apply (simp add:  fbtype_def)
+          apply (subgoal_tac "fbtype (fb S) tsa ts ts'")
+          apply simp
+          apply (simp add: fbtype_def, safe)
+          apply (rule TI_fb_fbtype, simp add: fbtype_def)
+          by (rule TO_fb_fbtype, simp add: fbtype_def)
+            
+        lemmas parallel_ID_sym = parallel_ID [THEN sym]
+        declare parallel_ID [simp del]
+
+        lemma fb_indep: "\<And>S. fbtype S tsa (TO A) (TI B) \<Longrightarrow> (fb^^(length tsa)) ((ID tsa \<parallel> A) oo S oo (ID tsa \<parallel> B)) = A oo (fb^^(length tsa)) S oo B"   
+          apply (induction tsa, simp_all)
+          apply (simp add: funpow_swap1)
+          apply (cut_tac ts="[a]" and ts'=tsa in parallel_ID_sym)
+          apply (simp add: par_assoc)
+          apply (subst fb_comp_fbtype)
+          apply (simp add: fbtype_def)
+          apply (subgoal_tac "fbtype (fb S) tsa (TO A) (TI B)")
+          apply simp
+          apply (simp add: fbtype_def, safe)
+          apply (rule TI_fb_fbtype, simp add: fbtype_def)
+          by (rule TO_fb_fbtype, simp add: fbtype_def)
+
+        lemma fb_indep_a: "\<And>S. fbtype S tsa (TO A) (TI B) \<Longrightarrow> length tsa = n \<Longrightarrow> (fb ^^ n) ((ID tsa \<parallel> A) oo S oo (ID tsa \<parallel> B)) = A oo (fb ^^ n) S oo B"
+          by (drule fb_indep, simp_all)
+
+        lemma fb_comp_right: "fbtype S [t] ts (TI B) \<Longrightarrow> fb (S oo (ID [t] \<parallel> B)) = fb S oo B"
+          proof -
+            assume [simp]: "fbtype S [t] ts (TI B)"
+            have "fb (S oo (ID [t] \<parallel> B)) = fb (ID (t#ts) oo S oo (ID [t] \<parallel> B))"
+              apply (subst comp_id_left_simp)
+              apply simp_all
+              apply (subgoal_tac "fbtype S [t] ts (TI B)")
+              apply (simp add: fbtype_def)
+              by simp
+            also have "... = fb (ID ([t]) \<parallel> ID ts oo S oo (ID [t] \<parallel> B))"
+              apply (cut_tac ts="[t]" and ts'="ts" in parallel_ID_sym)
+              by simp
+            also have "... = ID ts oo fb S oo B"
+              apply (rule fb_comp_fbtype)
+              by simp
+            also have "... = fb S oo B"
+              apply (subst comp_id_left_simp)
+              apply simp_all
+              apply (subgoal_tac "fbtype S [t] ts (TI B)")
+              apply (simp only: TI_fb_fbtype)
+              by simp
+            finally show "fb (S oo (ID [t] \<parallel> B)) = fb S oo B"
+              by simp
+          qed
+
+        lemma fb_comp_left: "fbtype S [t] (TO A) ts \<Longrightarrow> fb ((ID [t] \<parallel> A) oo S) = A oo fb S"
+          proof -
+            assume [simp]: "fbtype S [t] (TO A) ts"
+            have "fb ((ID [t] \<parallel> A) oo S) = fb ((ID [t] \<parallel> A) oo S oo ID (t#ts))"
+              apply (subst comp_id_right_simp)
+              apply simp_all
+              apply (subgoal_tac "fbtype S [t] (TO A) ts")
+              apply (subst TO_comp)
+              apply (simp add: fbtype_def)
+              apply (simp add: fbtype_def)
+              by simp
+            also have "... = fb (ID ([t]) \<parallel> A oo S oo (ID [t] \<parallel> ID ts))"
+              apply (cut_tac ts="[t]" and ts'="ts" in parallel_ID)
+              by simp
+            also have "... = A oo fb S oo ID ts"
+              apply (rule fb_comp_fbtype)
+              by simp
+            also have "... = A oo fb S"
+              apply (subst comp_id_right_simp)
+              apply simp_all
+              apply (subgoal_tac "fbtype S [t] (TO A) ts")
+              apply (subst TO_comp)
+              apply (simp only: TI_fb_fbtype)
+              apply (simp only: TO_fb_fbtype)
+              by simp
+            finally show "fb ((ID [t] \<parallel> A) oo S) = A oo fb S"
+              by simp
+          qed
+
+        lemma fb_indep_right: "\<And>S. fbtype S tsa ts (TI B) \<Longrightarrow> (fb^^(length tsa)) (S oo (ID tsa \<parallel> B)) = (fb^^(length tsa)) S oo B"   
+          apply (induction tsa, simp_all)
+          apply (simp add: funpow_swap1)
+          apply (cut_tac ts="[a]" and ts'=tsa in parallel_ID_sym)
+          apply (simp add: par_assoc)
+          apply (subst fb_comp_right)
+          apply (simp add: fbtype_def)
+          apply (subgoal_tac "fbtype (fb S) tsa ts (TI B)")
+          apply simp
+          apply (simp add: fbtype_def, safe)
+          apply (rule TI_fb_fbtype, simp add: fbtype_def)
+          by (rule TO_fb_fbtype, simp add: fbtype_def)
+
+        lemma fb_indep_left: "\<And>S. fbtype S tsa (TO A) ts \<Longrightarrow> (fb^^(length tsa)) ((ID tsa \<parallel> A) oo S) = A oo (fb^^(length tsa)) S"   
+          apply (induction tsa, simp_all)
+          apply (simp add: funpow_swap1)
+          apply (cut_tac ts="[a]" and ts'=tsa in parallel_ID_sym)
+          apply (simp add: par_assoc)
+          apply (subst fb_comp_left)
+          apply (simp add: fbtype_def)
+          apply (subgoal_tac "fbtype (fb S) tsa (TO A) ts")
+          apply simp
+          apply (simp add: fbtype_def, safe)
+          apply (rule TI_fb_fbtype, simp add: fbtype_def)
+          by (rule TO_fb_fbtype, simp add: fbtype_def)
 
 
+       lemma TI_fb_fbtype_n: "\<And>S. fbtype S t ts ts' \<Longrightarrow> TI ((fb^^(length t)) S) = ts"
+          and TO_fb_fbtype_n: "\<And>S. fbtype S t ts ts' \<Longrightarrow> TO ((fb^^(length t)) S) = ts'"
+        apply (induction t)
+        apply (simp add: fbtype_def)
+        apply (simp add: fbtype_def)
+        apply simp
+        apply (simp add: funpow_swap1)
+        apply (subgoal_tac "fbtype (fb S) t ts ts'")
+        apply (simp add: fbtype_def)
+        apply (simp add: fbtype_def)
+        apply (cut_tac S=S and t=a and ts = "t@ts" and ts'="t@ts'"in  TI_fb_fbtype)
+        apply (simp add: fbtype_def)
+        apply (cut_tac S=S and t=a and ts = "t@ts" and ts'="t@ts'"in  TO_fb_fbtype)
+        apply (simp add: fbtype_def)
+        apply simp
+
+        apply (simp add: funpow_swap1)
+        apply (subgoal_tac "fbtype (fb S) t ts ts'")
+        apply (simp add: fbtype_def)
+        apply (simp add: fbtype_def)
+        apply (cut_tac S=S and t=a and ts = "t@ts" and ts'="t@ts'"in  TI_fb_fbtype)
+        apply (simp add: fbtype_def)
+        apply (cut_tac S=S and t=a and ts = "t@ts" and ts'="t@ts'"in  TO_fb_fbtype)
+        apply (simp add: fbtype_def)
+        by simp
+
+        declare parallel_ID [simp]
+
+end
+  
   locale BaseOperationVars = BaseOperation +
     fixes TV :: "'var \<Rightarrow> 'b"
     fixes newvar :: "'var list \<Rightarrow> 'b \<Rightarrow> 'var"
@@ -637,6 +778,991 @@ begin
 
     lemma Switch_Split: "distinct x \<Longrightarrow>  [x \<leadsto> x @ x] = Split (TVs x)"
       by (simp add: distinct_id switch_append)
+
+    lemma  switch_comp: "distinct x \<Longrightarrow> perm x y \<Longrightarrow> set z \<subseteq> set y \<Longrightarrow> [x\<leadsto>y] oo [y\<leadsto>z] = [x\<leadsto>z]"
+        apply (subgoal_tac "distinct y")
+        apply (subst switch_comp_subst, simp_all add: Subst_eq)
+        using dist_perm by blast
+
+    lemma  switch_comp_a: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> set y \<subseteq> set x \<Longrightarrow> set z \<subseteq> set y \<Longrightarrow>[x\<leadsto>y] oo [y\<leadsto>z] = [x\<leadsto>z]"
+      by (subst switch_comp_subst, simp_all add: Subst_eq)
+
+      primrec newvars::"'var list \<Rightarrow> 'b list \<Rightarrow> 'var list" where
+        "newvars x [] = []" |
+        "newvars x (t # ts) = (let y = newvars x ts in newvar (y@x) t # y)"
+        
+     lemma newvars_type[simp]: "TVs(newvars x ts) = ts"
+        by (induction ts, simp_all add: Let_def)
+
+     lemma newvars_distinct[simp]: "distinct (newvars x ts)"
+        apply (induction ts, simp_all add: Let_def)
+        apply (subgoal_tac "newvar (newvars x ts @ x) a \<notin> set (newvars x ts @ x)")
+        apply (simp del: newvar_distinct)
+        by (simp only: newvar_distinct, simp) 
+
+     lemma newvars_old_distinct[simp]: "set (newvars x ts) \<inter> set x = {}"
+        apply (induction ts, simp_all add: Let_def)
+        apply (subgoal_tac "newvar (newvars x ts @ x) a \<notin> set (newvars x ts @ x)")
+        apply (simp del: newvar_distinct)
+        by (simp only: newvar_distinct, simp)
+
+     lemma newvars_old_distinct_a[simp]: "set x \<inter> set (newvars x ts) = {}"
+        apply (cut_tac x = x and ts = ts in newvars_old_distinct)
+        by (auto simp del: newvars_old_distinct)
+    
+     lemma newvars_length: "length(newvars x ts) = length ts"
+        by (induction ts, simp_all add: Let_def)
+
+      lemma TV_subst[simp]: "\<And> y . TVs x = TVs y \<Longrightarrow> TV (subst x y a) = TV a"
+        apply (induction x, simp_all)
+        apply (case_tac y, simp_all)
+        by (case_tac y, auto)
+
+      lemma TV_Subst[simp]: "TVs x = TVs y \<Longrightarrow> TVs (Subst x y z) = TVs z"
+        by (induction z, simp_all)
+
+      lemma Subst_cons: "distinct x \<Longrightarrow> a \<notin> set x \<Longrightarrow> b \<notin> set x \<Longrightarrow> length x = length y 
+        \<Longrightarrow>  Subst (a # x) (b # y) z = Subst x y (Subst [a] [b] z)"
+        by (induction z, simp_all)
+
+     declare TVs_append [simp]
+     declare distinct_id [simp]
+
+      lemma par_empty_right: "A \<parallel> [[] \<leadsto> []] = A"
+        by (simp)
+
+      lemma par_empty_left: "[[] \<leadsto> []] \<parallel> A = A"
+        by (simp)
+      lemma  distinct_vars_comp: "distinct x \<Longrightarrow> perm x y \<Longrightarrow> [x\<leadsto>y] oo [y\<leadsto>x] = ID (TVs x)"
+        by (simp add: switch_comp)
+          
+      lemma comp_switch_id[simp]: "distinct x \<Longrightarrow> TO S = TVs x \<Longrightarrow> S oo [x \<leadsto> x] = S"
+        by (simp)
+
+      lemma comp_id_switch[simp]: "distinct x \<Longrightarrow> TI S = TVs x \<Longrightarrow> [x \<leadsto> x] oo S = S "
+        by (simp)
+          
+      lemma distinct_Subst_a: "\<And> v . a \<noteq> aa \<Longrightarrow> a \<notin> set v \<Longrightarrow> aa \<notin> set v \<Longrightarrow>  distinct v \<Longrightarrow> length u = length v \<Longrightarrow> subst u v a \<noteq> subst u v aa"
+        apply (induction u, simp_all)
+        apply (case_tac v, simp_all, auto)
+        apply (metis subst_in_set subst_notin)
+        by (metis subst_in_set subst_notin)
+
+      lemma distinct_Subst_b: "\<And> v . a \<notin> set x \<Longrightarrow> distinct x \<Longrightarrow> a \<notin> set v \<Longrightarrow> distinct v \<Longrightarrow> set v \<inter> set x = {} \<Longrightarrow> length u = length v \<Longrightarrow> subst u v a \<notin> set (Subst u v x) "
+        apply (induction x, simp_all)
+        by (rule  distinct_Subst_a, simp_all)
+
+      lemma distinct_Subst: "distinct u \<Longrightarrow> distinct (v @ x) \<Longrightarrow> length u = length v \<Longrightarrow> distinct (Subst u v x)"
+        apply (induction x, simp_all)
+        by (rule distinct_Subst_b, simp_all)
+
+lemma Subst_switch_more_general: "distinct u \<Longrightarrow> distinct (v @ x) \<Longrightarrow> set y \<subseteq> set x 
+      \<Longrightarrow> TVs u = TVs v \<Longrightarrow> [x \<leadsto> y] = [Subst u v x \<leadsto> Subst u v y]"
+        proof -
+          assume [simp]: "distinct u"
+          assume [simp]: "set y \<subseteq> set x"
+          assume [simp]: " TVs u = TVs v"
+          assume "distinct (v @ x)"
+          from this have [simp]: "distinct v" and [simp]: "distinct x" and [simp]: "set v \<inter> set x = {}"
+            by simp_all
+
+          have [simp]: "length u = length v"
+            by (rule TVs_length_eq, simp)
+
+          have [simp]: "distinct (Subst u v x)"
+            by (rule distinct_Subst, simp_all)
+
+          have [simp]: "TVs (Subst u v x) = TVs x"
+            by simp
+
+          have [simp]: "Subst x (Subst u v x) y = Subst u v y"
+            by (simp add: Subst_Subst)
+            
+          have "[x \<leadsto> y] = [Subst u v x \<leadsto> Subst u v x] oo [x \<leadsto> y]"
+            by (subst comp_id_switch, simp_all)
+
+          also have "... = [Subst u v x \<leadsto> Subst u v y]"
+            by (subst switch_comp_subst, simp_all)
+          finally show ?thesis
+            by simp
+       qed
+
+      lemma id_par_comp: "distinct x \<Longrightarrow> TO A = TI B \<Longrightarrow> [x \<leadsto> x] \<parallel> (A oo B) = ([x \<leadsto> x] \<parallel> A ) oo ([x \<leadsto> x] \<parallel> B)"
+        by (subst comp_parallel_distrib, simp_all)
+
+      lemma par_id_comp: "distinct x \<Longrightarrow> TO A = TI B \<Longrightarrow> (A oo B) \<parallel> [x \<leadsto> x] = (A \<parallel> [x \<leadsto> x]) oo (B  \<parallel> [x \<leadsto> x])"
+        by (subst comp_parallel_distrib, simp_all)
+
+      lemma  switch_parallel_a: "distinct (x @ y) \<Longrightarrow> distinct (u @ v) \<Longrightarrow> TI S = TVs x \<Longrightarrow> TI T = TVs y \<Longrightarrow> TO S = TVs u \<Longrightarrow> TO T = TVs v \<Longrightarrow> 
+        S \<parallel> T oo [u@v \<leadsto> v@u] = [x@y\<leadsto>y@x] oo T \<parallel> S"
+        apply (subst switch_par)
+        apply simp_all
+        apply auto
+        apply (simp add: comp_assoc)
+        apply (subst switch_comp)
+        apply simp_all
+        apply auto
+        apply (subst perm_tp)
+        apply simp_all
+        apply (subst distinct_id)
+        by auto
+
+      lemma fb_switch_a: "\<And> S . distinct (a # z @ x) \<Longrightarrow> distinct (a # z @ y) \<Longrightarrow> TI S = TVs (z @ a # x) \<Longrightarrow> TO S = TVs (z @ a # y) 
+      \<Longrightarrow> (fb ^^ (Suc (length z))) ([a # z @ x \<leadsto> z @ a # x] oo S oo [z @ a # y \<leadsto> a # z @ y]) = (fb ^^ (Suc (length z))) S"
+      proof (induction z)
+        case Nil
+          from Nil show ?case
+            by simp_all
+      next
+        case (Cons b z)
+
+        have "(fb ^^ Suc (length (b # z))) ([a # (b # z) @ x \<leadsto> (b # z) @ a # x] oo S oo [(b # z) @ a # y \<leadsto> a # (b # z) @ y]) 
+            = (fb ^^ length z) ((fb ^^ (2::nat)) ([a # b # z @ x \<leadsto> b # z @ a # x] oo S oo [b # z @ a # y \<leadsto> a # b # z @ y]))"
+          by (simp add: funpow_swap1 numeral_2_eq_2)
+        also have "... = (fb ^^ length z) ((fb ^^ 2) ([b # a # z @ x \<leadsto> a # b # z @ x] oo ([a # b # z @ x \<leadsto> b # z @ a # x] oo S oo [b # z @ a # y \<leadsto> a # b # z @ y]) oo [a # b # z @ y \<leadsto> b # a # z @ y]))"
+          using Cons by (subst fb_twice_switch, simp_all, auto)
+
+        also have "... = (fb ^^ length z) ((fb ^^ 2) ([b # a # z @ x \<leadsto> b # z @ a # x] oo S oo [b # z @ a # y \<leadsto> b # a # z @ y]))"
+          using Cons(4) Cons(5) apply (simp add: comp_assoc [THEN sym])
+          using Cons(2) apply (subst switch_comp_a, auto)
+          apply (simp add: comp_assoc)
+          using Cons by (subst switch_comp_a, auto)
+        also have "... = (fb ^^ length z) ((fb ^^ 2) ([[b] \<leadsto> [b]] \<parallel> [a # z @ x \<leadsto> z @ a # x] oo S oo [[b] \<leadsto> [b]] \<parallel> [z @ a # y \<leadsto> a # z @ y]))"
+          using Cons by (subst par_switch, auto simp del: distinct_id, subst par_switch, auto)
+        also have "... = (fb ^^ length z) (fb (fb ([[b] \<leadsto> [b]] \<parallel> [a # z @ x \<leadsto> z @ a # x] oo S oo [[b] \<leadsto> [b]] \<parallel> [z @ a # y \<leadsto> a # z @ y])))"
+          by (simp add: numeral_2_eq_2 del: distinct_id)
+        also have "... = (fb ^^ length z) (fb ([a # z @ x \<leadsto> z @ a # x] oo fb S oo  [z @ a # y \<leadsto> a # z @ y]))"
+          apply (simp add: TVs_def)
+          using Cons(4) Cons(5) by (subst fb_comp, simp_all add: fbtype_def TVs_def)
+        also have "... = (fb ^^ Suc (length z)) ([a # z @ x \<leadsto> z @ a # x] oo fb S oo  [z @ a # y \<leadsto> a # z @ y])"
+          by (simp add: funpow_add funpow_swap1)
+        also have "... = (fb ^^ Suc (length z))  (fb S)"
+          using Cons by (subst Cons(1), simp_all add: TI_fb_fbtype TO_fb_fbtype fbtype_def TVs_def)
+        also have "... = (fb ^^ Suc (length (a # z))) S"
+          by (simp add: funpow_add funpow_swap1)
+        finally show ?case by simp
+      qed
+
+      lemma swap_power: "(f ^^ n) ((f ^^ m) S) = (f ^^ m) ((f ^^ n) S)"
+        by (metis add.left_commute funpow_add funpow_simps_right(1) o_apply o_id)
+
+          
+ 
+      lemma fb_switch_b: "\<And> v x y S . distinct (u @ v @ x) \<Longrightarrow> distinct (u @ v @ y) \<Longrightarrow> TI S = TVs (v @ u @ x) \<Longrightarrow> TO S = TVs (v @ u @ y) 
+      \<Longrightarrow> (fb ^^ (length (u @ v))) ([u @ v @ x \<leadsto> v @ u @ x] oo S oo [v @ u @ y \<leadsto> u @ v @ y]) = (fb ^^ (length (u @ v))) S"
+        proof (induction u)
+        case Nil
+          show ?case
+            using Nil by simp_all
+        next
+        case (Cons a u)
+          have "(fb ^^ length (a # u @ v)) ([a # u @ v @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> a # u @ v @ y])
+              =  (fb ^^ length v) ((fb ^^ (Suc (length u)))([a # u @ v @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> a # u @ v @ y]))"
+            apply (simp add: funpow_add funpow_swap1)
+            by (rule swap_power)
+          also have "... = (fb ^^ length v) ((fb ^^ (Suc (length u))) (
+            [a # u @ v @ x \<leadsto> u @ a # v @ x] oo ([u @ a # v @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> u @ a # v @ y]) oo [u @ a # v @ y \<leadsto> a # u @ v @ y]))"
+            using Cons apply (simp add: comp_assoc switch_comp_a)
+              
+            apply (subst switch_comp_a)
+                apply simp_all
+              apply blast
+             apply blast
+             apply (simp add: comp_assoc [THEN sym])
+            by (subst switch_comp_a, auto)
+
+          also have "... = (fb ^^ length v) ((fb ^^ Suc (length u)) ([u @ a # v @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> u @ a # v @ y]))"
+            using Cons by (subst fb_switch_a, simp_all)
+
+          also have "... = (fb ^^ (length (u @ (a # v)))) ([u @ a # v @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> u @ a # v @ y])"
+            apply (simp add: funpow_add funpow_swap1)
+            by (rule swap_power)
+          also have "... =  (fb ^^ (length (u @ (a # v)))) ([u @ (a # v) @ x \<leadsto> (a # v) @ u @ x] 
+              oo ([(a # v) @ u @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> (a # v) @ u @ y])
+              oo [(a # v) @ u @ y \<leadsto> u @ (a # v) @ y])"
+            using Cons(4) Cons(5)
+            apply (simp add: comp_assoc)
+            using Cons(3) apply (subst switch_comp_a, simp_all)
+               apply blast
+              apply blast
+              apply blast
+            apply (simp add: comp_assoc [THEN sym])
+            using Cons(2) by (subst switch_comp_a, simp_all, auto)
+
+          also have "... = (fb ^^ length (u @ a # v)) ([a # v @ u @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> a # v @ u @ y])"
+            using Cons by (subst Cons(1), simp_all)
+          also have "... = (fb ^^ length u) (((fb ^^ (Suc (length v)))) ([a # v @ u @ x \<leadsto> v @ a # u @ x] oo S oo [v @ a # u @ y \<leadsto> a # v @ u @ y]))"
+            by (simp add: funpow_add funpow_swap1)
+          also have "... =  (fb ^^ length u) ((fb ^^ Suc (length v)) S)"
+            using Cons by (subst fb_switch_a, simp_all, blast, blast)
+          also have "... = (fb ^^ length ((a # u) @ v)) S"
+            by (simp add: funpow_add funpow_swap1)
+ 
+          finally show ?case
+            by simp
+      qed
+
+    theorem fb_perm: "\<And> v S . perm u v \<Longrightarrow> distinct (u @ x) \<Longrightarrow> distinct (u @ y) \<Longrightarrow> fbtype S (TVs u) (TVs x) (TVs y) 
+        \<Longrightarrow> (fb ^^ (length u)) ([v @ x \<leadsto> u @ x] oo S oo [u @ y \<leadsto> v @ y]) = (fb ^^ (length u)) S"
+      proof (induction u)
+        case Nil
+          show ?case
+            using Nil by (simp add: fbtype_def TVs_def)
+        next
+        case (Cons a u)
+          from \<open>perm (a # u) v\<close> obtain w w' where "v = w @ a # w'" and [simp]: "perm u (w @ w')"
+            by (simp add: split_perm, blast)
+
+          have [simp]: "length u = length w + length w'"
+            using \<open>perm u (w @ w')\<close> perm_length by fastforce
+
+          have [simp]: "set u = set w \<union> set w'"
+            using \<open>perm u (w @ w')\<close> perm_set_eq by fastforce
+
+          have [simp]: "distinct w" and [simp]:"distinct w'"
+            apply (meson Cons.prems(3) \<open>perm u (w @ w')\<close> dist_perm distinct.simps(2) distinct_append)
+            by (meson Cons.prems(3) \<open>perm u (w @ w')\<close> dist_perm distinct.simps(2) distinct_append)
+
+          have A: "set w \<inter> set w' = {}"
+            by (meson Cons.prems(3) \<open>perm u (w @ w')\<close> dist_perm distinct.simps(2) distinct_append)
+
+          have "(fb ^^ length (a # u)) ([v @ x \<leadsto> a # u @ x] oo S oo [a # u @ y \<leadsto> v @ y]) 
+            = (fb ^^ length w') ((fb ^^ (length (w @ [a]))) ([w @ a # w' @ x \<leadsto> a # u @ x] oo S oo [a # u @ y \<leadsto> w @ a # w' @ y]))"
+            apply (simp add: funpow_add funpow_swap1)
+            using \<open>v = w @ a # w'\<close> swap_power by fastforce
+          thm fb_switch_a
+          thm fb_switch_b
+          thm fbtype_def
+          also have "... = (fb ^^ length w') ((fb ^^ (length (w @ [a]))) ([w @ [a] @ w' @ x \<leadsto> [a] @ w @ w' @ x] 
+              oo ([[a] @ w @ w' @ x \<leadsto> a # u @ x] oo S oo [a # u @ y \<leadsto>[a] @ w @ w' @ y])
+              oo [[a] @ w @ w' @ y \<leadsto> w @ [a] @ w' @ y]))"
+            using A Cons apply (simp add: comp_assoc fbtype_def )
+            apply (subst switch_comp_a, auto)
+            apply (simp add: comp_assoc [THEN sym] )
+       
+            by (subst switch_comp_a, auto)
+          also have "... = (fb ^^ length w') ((fb ^^ length (w @ [a])) ([a # w @ w' @ x \<leadsto> a # u @ x] oo S oo [a # u @ y \<leadsto> a # w @ w' @ y]))"
+            
+            using A Cons apply (subst fb_switch_b, simp_all add: fbtype_def)
+            apply blast
+            by blast
+
+          also have "... = (fb ^^ length u) (fb ([a # w @ w' @ x \<leadsto> a # u @ x] oo S oo [a # u @ y \<leadsto> a # w @ w' @ y]))"
+            apply (simp add: funpow_add funpow_swap1)
+            using \<open>v = w @ a # w'\<close> swap_power by fastforce
+          also have "... = (fb ^^ length u) (fb ([[a] \<leadsto> [a]] \<parallel> [w @ w' @ x \<leadsto> u @ x] oo S oo [[a] \<leadsto> [a]] \<parallel> [u @ y \<leadsto> w @ w' @ y]))"
+            using A Cons apply (subst par_switch, simp_all add: fbtype_def TVs_def del: distinct_id)
+            apply blast
+              apply blast
+            apply (subst par_switch)
+               apply simp_all
+              by blast
+          also have "... = (fb ^^ length u) ([(w @ w') @ x \<leadsto> u @ x] oo fb S oo [u @ y \<leadsto> (w @ w') @ y])"
+            using Cons apply simp
+            by (subst fb_comp, simp_all add: fbtype_def)
+
+          thm Cons(1)
+          also have "... = (fb ^^ length u) (fb S)"
+            using A Cons by (subst Cons(1), simp_all add: fbtype_def TI_fb_fbtype TO_fb_fbtype)
+
+          also have "... = (fb ^^ length (a # u)) S"
+            by (simp add: funpow_add funpow_swap1)
+          finally show ?case
+            by (simp)
+        qed
+          
+  declare distinct_id [simp del]
+
+  lemma fb_gen_serial: "\<And>A B v x . distinct (u @ v @ x) \<Longrightarrow> TO A = TVs (v@x) \<Longrightarrow> TI B = TVs (u @ x) \<Longrightarrow>  TVs u = TVs v 
+        \<Longrightarrow> (fb ^^ length u) (([u \<leadsto> u] \<parallel> A) oo [u @ v @ x \<leadsto> v @ u @ x] oo ([v \<leadsto> v] \<parallel> B)) = A oo B"
+        apply (induction u, simp)
+        apply (simp add: distinct_id)
+        apply (case_tac v, simp_all)
+        proof safe
+          fix a u A B x b v'
+          assume [simp]:"TO A = TV b # TVs v' @ TVs x"
+            and [simp]:"TI B = TV b # TVs v' @ TVs x"
+            and [simp]:"a \<notin> set u"
+            and [simp]:"TV a = TV b"
+            and [simp]:"TVs u = TVs v'"
+          assume [simp]: "a \<noteq> b"
+          from this have [simp]: "b \<noteq> a"
+            by safe
+          assume [simp]:"a \<notin> set v'"
+            and [simp]:"a \<notin> set x"
+            and [simp]:"distinct u"
+            and [simp]:"b \<notin> set v'"
+            and [simp]:"distinct v'"
+            and [simp]:"distinct x"
+            and [simp]:"b \<notin> set x"
+            and [simp]:"set v' \<inter> set x = {}"
+            and [simp]:"b \<notin> set u"
+          assume [simp]:"set u \<inter> set v' = {}" 
+          from this have [simp]:"set v' \<inter> set u = {}"
+            by blast
+          assume [simp]:"set u \<inter> set x = {}"
+
+          have [simp]: "length v' = length u"
+            by (rule TVs_length_eq, simp)
+
+          have [simp]: "perm (a # u @ b # v' @ x) (a # b # v' @ u @ x)"
+            by (simp add: perm_def )
+          have [simp]: "perm (a # u @ b # v' @ x) (b # a # v' @ u @ x)"
+            by (simp add: perm_def )
+
+          have [simp]:"perm (u @ b # v' @ x) (u @ v' @ b # x)"
+            by (simp add: perm_def )
+
+          thm Subst_switch_more_general
+
+          have A: "[u @ b # v' @ x \<leadsto> b # v' @ u @ x] oo [a # v' @ u @ x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto>  v' @ b # u @ x]"
+            proof -
+              have A: "[a # v' @ u @ x \<leadsto> v' @ a # u @ x] = [b # v' @ u @ x \<leadsto> v' @ b # u @ x]"
+                apply (cut_tac u="[a]" and v="[b]" and x="a # v' @ u @ x" and y = "v' @ a # u @ x" in Subst_switch_more_general)
+                apply simp_all
+                by (simp add: Subst_append)
+              have B: "[u @ b # v' @ x \<leadsto> b # v' @ u @ x] oo [a # v' @ u @ x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto> b # v' @ u @ x] oo [b # v' @ u @ x \<leadsto> v' @ b # u @ x]"
+                by (simp add: A)
+              also have "... = [u @ b # v' @ x \<leadsto>  v' @ b # u @ x]"
+                apply (subst switch_comp)
+                apply simp_all
+                by (simp add: perm_def union_assoc union_lcomm)
+              finally show "[u @ b # v' @ x \<leadsto> b # v' @ u @ x] oo [a # v' @ u @ x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto>  v' @ b # u @ x]"
+                by simp
+              qed
+          have B: "[u @ b # v' @ x \<leadsto> v' @ u @ b # x] oo [v' @ u @ a # x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto> v' @ b # u @ x]"
+            proof -
+              have A: "[v' @ u @ a # x \<leadsto> v' @ a # u @ x] = [v' @ u @ b # x \<leadsto> v' @ b # u @ x]"
+                apply (cut_tac u="[a]" and v="[b]" and x="v' @ u @ a # x" and y = "v' @ a # u @ x" in Subst_switch_more_general)
+                apply simp_all
+                by (simp add: Subst_append)
+              have B: "[u @ b # v' @ x \<leadsto> v' @ u @ b # x] oo [v' @ u @ a # x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto> v' @ u @ b # x] oo [v' @ u @ b # x \<leadsto> v' @ b # u @ x]"
+                by (simp add: A)
+              also have "... = [u @ b # v' @ x \<leadsto> v' @ b # u @ x]"
+                apply (subst switch_comp)
+                apply simp_all
+                by (simp add: perm_def union_assoc union_lcomm)
+              finally show "[u @ b # v' @ x \<leadsto> v' @ u @ b # x] oo [v' @ u @ a # x \<leadsto> v' @ a # u @ x] = [u @ b # v' @ x \<leadsto> v' @ b # u @ x]"
+                by simp
+            qed
+          have C: "[b # v' @ x \<leadsto> v' @ b # x] oo [u @ a # x \<leadsto> a # u @ x] = [b # v' @ x \<leadsto> b # v' @ x]"
+            proof -
+              have [simp]: "[u @ a # x \<leadsto> a # u @ x] = [u @ b # x \<leadsto> b # u @ x]"
+                apply (cut_tac u="[a]" and v="[b]" and x="u @ a # x" and y = "a # u @ x" in Subst_switch_more_general)
+                apply simp_all
+                by (simp add: Subst_append)
+              have [simp]: "[u @ b # x \<leadsto> b # u @ x] = [v' @ b # x \<leadsto> b # v' @ x]"
+                apply (cut_tac u=u and v="v'" and x="u @ b # x" and y="b # u @ x" in Subst_switch_more_general)
+                apply simp_all
+                by (simp add: Subst_append)
+              show  "[b # v' @ x \<leadsto> v' @ b # x] oo [u @ a # x \<leadsto> a # u @ x] = [b # v' @ x \<leadsto> b # v' @ x]"
+                apply simp
+                apply (subst switch_comp)
+                apply simp_all
+                by (simp add: perm_def union_assoc union_lcomm)
+            qed
+
+          assume ind_hyp: "(\<And>A B v x. distinct v \<and> distinct x \<and> set v \<inter> set x = {} \<and> set u \<inter> set v = {} \<and> set u \<inter> set x = {} \<Longrightarrow>
+                   TO A = TVs v @ TVs x \<Longrightarrow> TI B = TVs v @ TVs x \<Longrightarrow> TVs v' = TVs v \<Longrightarrow> (fb ^^ length u) ([u \<leadsto> u] \<parallel> A oo [u @ v @ x \<leadsto> v @ u @ x] oo [v \<leadsto> v] \<parallel> B) = A oo B)"
+
+          define A' where "A' \<equiv> [u\<leadsto> u] \<parallel> A oo [u@b#v'@x \<leadsto> b#v'@u@x]"
+          define B' where "B' \<equiv> [a#v'@u@x \<leadsto> v'@a#u@x] oo [v'\<leadsto> v'] \<parallel> B"
+
+          define A'' where "A'' \<equiv> A oo [b#v'@x \<leadsto> v'@b#x]"
+          define B'' where "B'' \<equiv> [u@a#x \<leadsto> a#u@x] oo B"
+
+          have "fb ((fb ^^ length u) ([a # u \<leadsto> a # u] \<parallel> A oo [a # u @ b # v' @ x \<leadsto> b # v' @ a # u @ x] oo [b # v' \<leadsto> b # v'] \<parallel> B)) 
+                = (fb ^^ length u) (fb ([a # u \<leadsto> a # u] \<parallel> A oo [a # u @ b # v' @ x \<leadsto> b # v' @ a # u @ x] oo [b # v' \<leadsto> b # v'] \<parallel> B))"
+            by (simp add: funpow_swap1)
+          also have "... = (fb ^^ length u) (fb (([[a] \<leadsto> [a]] \<parallel> A') oo [a # b # v'@ u @ x \<leadsto> b # a # v'@ u @ x] oo ([[b] \<leadsto> [b]] \<parallel> B')))"
+            proof (simp add: A'_def B'_def)
+              have "[[a] \<leadsto> [a]] \<parallel> ([u \<leadsto> u] \<parallel> A oo [u @ b # v' @ x \<leadsto> b # v' @ u @ x]) oo 
+                        [a # b # v' @ u @ x \<leadsto> b # a # v' @ u @ x] oo [[b] \<leadsto> [b]] \<parallel> ([a # v' @ u @ x \<leadsto> v' @ a # u @ x] oo [v' \<leadsto> v'] \<parallel> B) = 
+                    ([a#u \<leadsto> a#u] \<parallel> A oo [a#u @ b # v' @ x \<leadsto> a#b # v' @ u @ x]) oo 
+                        [a # b # v' @ u @ x \<leadsto> b # a # v' @ u @ x] oo ([b#a # v' @ u @ x \<leadsto> b#v' @ a # u @ x] oo [b#v' \<leadsto> b#v'] \<parallel> B)"
+                apply (subst id_par_comp, simp_all)
+                apply (subst id_par_comp, simp_all)
+                apply (simp add: par_assoc [THEN sym] par_switch)
+                by (subst par_switch, simp_all, auto)
+              also have "... = [a#u \<leadsto> a#u] \<parallel> A oo ([a#u @ b # v' @ x \<leadsto> a#b # v' @ u @ x] oo 
+                        [a # b # v' @ u @ x \<leadsto> b # a # v' @ u @ x] oo [b#a # v' @ u @ x \<leadsto> b#v' @ a # u @ x]) oo [b#v' \<leadsto> b#v'] \<parallel> B"
+                by (simp add: comp_assoc)
+              also have "... = [a#u \<leadsto> a#u] \<parallel> A oo ([a#u @ b # v' @ x \<leadsto> b#v' @ a # u @ x]) oo [b#v' \<leadsto> b#v'] \<parallel> B"
+                apply (subst switch_comp, simp_all)
+                apply auto [1]
+                by (subst switch_comp, simp_all)
+            finally show "(fb ^^ length u) (fb ([a # u \<leadsto> a # u] \<parallel> A oo [a # u @ b # v' @ x \<leadsto> b # v' @ a # u @ x] oo [b # v' \<leadsto> b # v'] \<parallel> B)) =
+              (fb ^^ length u)
+               (fb ([[a] \<leadsto> [a]] \<parallel> ([u \<leadsto> u] \<parallel> A oo [u @ b # v' @ x \<leadsto> b # v' @ u @ x]) oo [a # b # v' @ u @ x \<leadsto> b # a # v' @ u @ x] oo [[b] \<leadsto> [b]] \<parallel> ([a # v' @ u @ x \<leadsto> v' @ a # u @ x] oo [v' \<leadsto> v'] \<parallel> B)))"
+               by simp
+
+            qed
+          also have "... = (fb ^^ length u) (A' oo B')"
+            by (subst fb_serial, simp_all add: A'_def B'_def)
+          also have "... = (fb ^^ length u) ([u \<leadsto> u] \<parallel> A'' oo [u@v'@b#x \<leadsto> v'@u@b#x] oo [v' \<leadsto> v'] \<parallel> B'')"
+            apply (simp add: A'_def B'_def A''_def B''_def)
+            apply (subst id_par_comp, simp_all)
+            apply (subst id_par_comp, simp_all)
+            apply (simp add: par_switch)
+            apply (rule_tac f = "fb ^^ length u" in arg_cong)
+            apply (simp add: comp_assoc [THEN sym])
+            apply (rule_tac f = "\<lambda> X . X oo [v' \<leadsto> v'] \<parallel> B" in arg_cong)
+            apply (simp add: comp_assoc)
+            apply (rule_tac f = "\<lambda> X . [u \<leadsto> u] \<parallel> A oo X" in arg_cong)
+            apply (simp add: comp_assoc [THEN sym])
+            apply (subst switch_comp)
+            apply auto [3]
+            by (simp add: A  B)
+          also have "... = A'' oo B''"
+            apply (rule ind_hyp, simp_all)
+            apply (simp add: A''_def)
+            by (simp add: B''_def)
+          also have "... = A oo ([b # v' @ x \<leadsto> v' @ b # x] oo [u @ a # x \<leadsto> a # u @ x]) oo B"
+            apply (simp add: A''_def B''_def)
+            by (simp add: comp_assoc)
+          also have "... = A oo B"
+            by (simp add: C)
+
+          finally show "fb ((fb ^^ length u) ([a # u \<leadsto> a # u] \<parallel> A oo [a # u @ b # v' @ x \<leadsto> b # v' @ a # u @ x] oo [b # v' \<leadsto> b # v'] \<parallel> B)) = A oo B"
+            by simp
+        qed
+          
+          (***********)
+
+
+      lemma fb_par_serial: "distinct(u @ x @ x') \<Longrightarrow> distinct (u @ y @ x') \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs (u@y) \<Longrightarrow> TI B = TVs (u@x') \<Longrightarrow> TO B = TVs y' \<Longrightarrow>
+        (fb^^(length u)) ([u @ x @ x' \<leadsto> x @ u @ x'] oo (A \<parallel> B)) = (A \<parallel> ID (TVs x') oo [u @ y @ x' \<leadsto> y @ u @ x'] oo ID (TVs y) \<parallel> B)"
+        proof -
+          assume A: "distinct (u @ y @ x')"
+          assume E: "distinct(u @ x @ x')"
+          assume [simp]: "TO A = TVs (u@y)"
+          assume [simp]: "TI A = TVs x"
+          assume [simp]: "TI B = TVs (u@x')"
+          define v where "v \<equiv> newvars (u @ x @ x' @ y) (TVs u)"
+          have B: "distinct (u @ v @ y @ x')"
+            apply (cut_tac x = "u @ x @ x' @ y" and ts = "TVs u" in newvars_old_distinct)
+            apply (unfold v_def [THEN symmetric])
+            apply (cut_tac A, simp_all)
+            apply safe
+             apply (simp add: v_def)
+             by blast
+
+          have F: "distinct ((v @ y @ u) @ x')"
+            apply (cut_tac x = "u @ x @ x' @ y" and ts = "TVs u" in newvars_old_distinct)
+            apply (unfold v_def [THEN symmetric])
+            apply (cut_tac A, simp_all)
+            apply (simp add: v_def)
+              by blast
+
+          have [simp]: "TVs v= TVs u"
+            by (simp add: v_def)
+          have AA: "(fb ^^ length u) ([u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo [u @ v @ y @ x' \<leadsto> v @ u @ y @ x'] oo [v \<leadsto> v] \<parallel> ([u @ y @ x' \<leadsto> y @ u @ x'] oo [y \<leadsto> y] \<parallel> B)) 
+              = A \<parallel> [x' \<leadsto> x'] oo ([u @ y @ x' \<leadsto> y @ u @ x'] oo [y \<leadsto> y] \<parallel> B)"
+            apply (cut_tac x = "y @ x'" and u = u and v = v  and A = "A \<parallel> [x' \<leadsto> x']" and B = "[u @ y @ x' \<leadsto> y @ u @ x'] oo ([y \<leadsto> y] \<parallel> B)" in fb_gen_serial)
+            by (cut_tac B, simp, simp_all)
+
+          (*use "[v \<leadsto> v] \<parallel> (A oo B) = [v \<leadsto> v] \<parallel> A oo [v \<leadsto> v] \<parallel> B"*)  
+          have C: "[v \<leadsto> v] \<parallel> ([u @ y @ x' \<leadsto> y @ u @ x'] oo [y \<leadsto> y] \<parallel> B) = [v @ u @ y @ x' \<leadsto> v @ y @ u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B"
+            apply (subst id_par_comp, simp_all)
+            apply (simp add: v_def)
+            apply (subst par_assoc [THEN sym])
+            apply (subst par_switch)
+            apply (cut_tac F, auto)
+            apply (subst par_switch)
+            by (cut_tac F, auto)
+
+          have "[u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo [u @ v @ y @ x' \<leadsto> v @ u @ y @ x'] oo [v \<leadsto> v] \<parallel> ([u @ y @ x' \<leadsto> y @ u @ x'] oo [y \<leadsto> y] \<parallel> B) = 
+           [u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo [u @ v @ y @ x' \<leadsto> v @ u @ y @ x'] oo ([v @ u @ y @ x' \<leadsto> v @ y @ u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B)"
+           by (simp add: C)
+          also have "... = [u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo ([u @ v @ y @ x' \<leadsto> v @ u @ y @ x'] oo [v @ u @ y @ x' \<leadsto> v @ y @ u @ x']) oo [v @ y \<leadsto> v @ y] \<parallel> B"
+            by (simp add: comp_assoc)
+          also have "... = [u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo [u @ v @ y @ x' \<leadsto> v @ y @ u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B"
+            apply (subst switch_comp, simp_all)
+            apply (cut_tac B, simp)
+            apply (simp add: perm_def)
+            by auto
+
+          thm switch_par
+
+         also have "... = ([u @ x @ x' \<leadsto> x @ u @ x'] oo (A \<parallel> [u @ x' \<leadsto> u @ x']) oo [v @ y @ u @ x' \<leadsto> u @ v @ y @ x']) oo  [u @ v @ y @ x' \<leadsto> v @ y @ u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B"
+          apply (subgoal_tac "[u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) = [u @ x @ x' \<leadsto> x @ u @ x'] oo A \<parallel> [u @ x' \<leadsto> u @ x'] oo [v @ y @ u @ x' \<leadsto> u @ v @ y @ x']", simp_all)
+          apply (subst par_assoc [THEN sym])
+          apply (subst switch_par [of "u" "x" "v @ y" "u"])
+          apply (cut_tac E, simp)
+                apply (cut_tac B)
+                apply simp
+             apply blast
+          apply simp_all
+          apply (subst par_id_comp)
+          apply (cut_tac A, simp)
+          apply (subst TO_comp, simp_all)
+          apply (subst par_id_comp)
+          apply (cut_tac A, simp)
+          apply (subst TI_par, simp_all)
+          apply (subst par_assoc)
+          apply (subst par_switch)
+          apply (cut_tac E, simp_all)
+          apply (subst par_switch)
+          apply (cut_tac E, simp_all)
+          apply (subst par_switch)
+          by (cut_tac F, simp_all, auto)
+
+         also have "... = [u @ x @ x' \<leadsto> x @ u @ x'] oo (A \<parallel> [u @ x' \<leadsto> u @ x']) oo ([v @ y @ u @ x' \<leadsto> u @ v @ y @ x'] oo  [u @ v @ y @ x' \<leadsto> v @ y @ u @ x']) oo [v @ y \<leadsto> v @ y] \<parallel> B"
+          by (simp add: comp_assoc)
+
+
+         also have "... = [u @ x @ x' \<leadsto> x @ u @ x'] oo (A \<parallel> [u @ x' \<leadsto> u @ x']) oo [v @ y \<leadsto> v @ y] \<parallel> B"
+          apply (subst switch_comp)
+          apply (cut_tac F, simp)
+          apply (simp add: add.left_commute perm_def)
+          using F TO_comp by auto
+         also have "... = [u @ x @ x' \<leadsto> x @ u @ x'] oo (A \<parallel> [u @ x' \<leadsto> u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B)"
+          using local.comp_assoc by auto
+         also have "... =([u @ x @ x' \<leadsto> x @ u @ x'] oo A \<parallel> B)"
+          apply (subgoal_tac "(A \<parallel> [u @ x' \<leadsto> u @ x'] oo [v @ y \<leadsto> v @ y] \<parallel> B) = A \<parallel> B")
+          apply (simp_all)
+          apply (subst comp_parallel_distrib, simp_all)
+          apply (subst comp_switch_id, simp_all)
+          apply (cut_tac B, simp)
+          apply (subst comp_id_switch, simp_all)
+          by (cut_tac B, simp)
+
+         finally have [simp]: "[u \<leadsto> u] \<parallel> (A \<parallel> [x' \<leadsto> x']) oo [u @ v @ y @ x' \<leadsto> v @ u @ y @ x'] oo [v \<leadsto> v] \<parallel> ([u @ y @ x' \<leadsto> y @ u @ x'] oo [y \<leadsto> y] \<parallel> B) = 
+           ([u @ x @ x' \<leadsto> x @ u @ x'] oo A \<parallel> B)"
+           by simp
+
+        show ?thesis
+          apply (cut_tac AA)
+          apply simp
+          using F distinct_id local.comp_assoc by auto
+      qed
+
+
+      (*!!!*)
+      (*to prove this using dist x, s, t and set u \<subseteq> set x and set v \<subseteq> set x \<Longrightarrow> x[x \<rightarrow> u @ v] oo ([u \<rightarrow> s] ||| [v \<rightarrow> t]) = [x \<rightarrow> s @ t]*)
+      (* TO CHECK \<rightarrow> the axiom still requires set (In A) \<inter> set (In B) = {}, etc.) \<rightarrow> maybe needs to be changed *)
+
+
+      lemma switch_newvars: "distinct x \<Longrightarrow> [newvars w (TVs x) \<leadsto> newvars w (TVs x)] = [x \<leadsto> x]"
+        by (simp add: distinct_id)
+
+
+      lemma switch_par_comp_Subst: "distinct x \<Longrightarrow> distinct y' \<Longrightarrow> distinct z' \<Longrightarrow> set y \<subseteq> set x 
+      \<Longrightarrow> set z \<subseteq> set x 
+        \<Longrightarrow> set u \<subseteq> set y' \<Longrightarrow> set v \<subseteq> set z' \<Longrightarrow> TVs y = TVs y' \<Longrightarrow> TVs z = TVs z' \<Longrightarrow>
+        [x \<leadsto> y @ z] oo [y' \<leadsto> u] \<parallel> [z' \<leadsto> v] = [x \<leadsto> Subst y' y u @ Subst z' z v]"
+        proof -
+          assume [simp]: "distinct y'"
+          assume [simp]: "set u \<subseteq> set y'"
+          assume [simp]: "distinct z'"
+          assume [simp]: "set v \<subseteq> set z'"
+          assume [simp]: "distinct x"
+          assume [simp]: "TVs y = TVs y'"
+          assume [simp]: "TVs z = TVs z'"
+          assume "set y \<subseteq> set x"
+          assume "set z \<subseteq> set x"
+
+          define y'' where "y'' \<equiv> newvars (y' @ z') (TVs y')"
+
+          have [simp]: "distinct y''"
+            by (simp add: y''_def)
+
+          have [simp]: "set y' \<inter> set y'' = {}"
+            by (metis Un_iff disjoint_iff_not_equal newvars_old_distinct_a set_append y''_def)
+
+          have [simp]: "set y'' \<inter> set z' = {}"
+            by (metis Un_iff disjoint_iff_not_equal newvars_old_distinct_a set_append y''_def)
+
+          have [simp]: "TVs y' = TVs y''"
+            by (simp add: y''_def)            
+
+          have [simp]: "length y' = length y''"
+            by (rule TVs_length_eq, simp)
+
+          have [simp]: "TVs y = TVs y''"
+            by simp
+
+          have [simp]: "length y'' = length y"
+            by (metis  \<open>TVs y = TVs y''\<close> TVs_length_eq)
+
+          have [simp]: "length z' = length z"
+            by (metis \<open>TVs z = TVs z'\<close> TVs_length_eq)
+
+          have [simp]: "set z' \<inter> set (Subst y' y'' u) = {}"
+            apply (subgoal_tac "set (Subst y' y'' u) \<subseteq> set y''")
+            apply (subgoal_tac "set z' \<inter> set y'' = {}")
+            apply blast
+            apply (simp add: Int_commute)
+            by (subst Subst_set_incl, simp_all)
+
+          have [simp]: "Subst y'' y (Subst y' y'' u) = (Subst y' y u)"
+            by (rule Subst_Subst_a, simp_all)
+
+          have [simp]: "Subst (y'' @ z') (y @ z) (Subst y' y'' u) = (Subst y' y u)"
+            apply (subst Subst_not_in)
+            by simp_all
+
+          have [simp]: "set y'' \<inter> set v = {}"
+            apply (subgoal_tac "set v \<subseteq> set z'")
+            apply (subgoal_tac "set y'' \<inter> set z' = {}")
+            apply blast
+            by simp_all
+
+          have [simp]: "Subst (y'' @ z') (y @ z) v = (Subst z' z v)"
+            by (subst Subst_not_in_a, simp_all)
+
+          have [simp]: "Subst (y'' @ z') (y @ z) ((Subst y' y'' u) @ v) = ((Subst y' y u) @ (Subst z' z v))"
+            by (simp add: Subst_append)
+
+          have "[x \<leadsto> y @ z] oo [y' \<leadsto> u] \<parallel> [z' \<leadsto> v] = [x \<leadsto> y @ z] oo [y'' \<leadsto> Subst y' y'' u] \<parallel> [z' \<leadsto> v]"
+            by (cut_tac x=y' and y=u and u = y' and v =y'' in Subst_switch_more_general, simp_all add: Int_commute)
+          also have "... = [x \<leadsto> y @ z] oo [y'' @ z' \<leadsto> (Subst y' y'' u) @ v]"
+            apply (subst par_switch, simp_all)
+            by (subst Subst_set_incl, simp_all)
+          also have "... = [x \<leadsto> Subst (y'' @ z') (y @ z) ((Subst y' y'' u) @ v)]"
+            apply (subst switch_comp_subst, auto)
+            using \<open>set y \<subseteq> set x\<close> apply auto [1]
+            using \<open>set z \<subseteq> set x \<close> apply auto [1]
+            using Subst_set_incl \<open>length y' = length y''\<close> \<open>set u \<subseteq> set y'\<close> apply blast
+            using \<open>set v \<subseteq> set z'\<close> by blast
+          also have "... = [x \<leadsto> (Subst y' y u) @ (Subst z' z v)]"
+            by simp
+          finally show ?thesis
+            by simp
+        qed
+            
+      lemma switch_par_comp: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> distinct z \<Longrightarrow> set y \<subseteq> set x \<Longrightarrow> set z \<subseteq> set x 
+        \<Longrightarrow> set y' \<subseteq> set y \<Longrightarrow> set z' \<subseteq> set z \<Longrightarrow> [x \<leadsto> y @ z] oo [y \<leadsto> y'] \<parallel> [z \<leadsto> z'] = [x \<leadsto> y' @ z']"
+        by (subst switch_par_comp_Subst, simp_all add: Subst_eq)
+
+      lemma par_switch_eq: "distinct u \<Longrightarrow> distinct v \<Longrightarrow> distinct y' \<Longrightarrow> distinct z' 
+            \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs v \<Longrightarrow> TI C = TVs v @ TVs y \<Longrightarrow> TVs y = TVs y' \<Longrightarrow>
+            TI C' = TVs v @ TVs z \<Longrightarrow> TVs z = TVs z' \<Longrightarrow>
+            set x \<subseteq> set u \<Longrightarrow> set y \<subseteq> set u \<Longrightarrow> set z \<subseteq> set u \<Longrightarrow> 
+            [v \<leadsto> v] \<parallel> [u \<leadsto> y] oo C = [v \<leadsto> v] \<parallel> [u \<leadsto> z] oo C' 
+            \<Longrightarrow> [u \<leadsto> x @ y] oo ( A \<parallel> [y' \<leadsto> y']) oo C = [u \<leadsto> x @ z] oo ( A \<parallel> [z' \<leadsto> z']) oo C'"
+        proof -
+          assume [simp]: "distinct u"
+          assume [simp]: "set x \<subseteq> set u"
+          assume [simp]: "set y \<subseteq> set u"
+          assume [simp]: "TVs y = TVs y'"
+          assume [simp]: "TI A = TVs x"
+          assume [simp]: "distinct y'"
+          assume [simp]: "TO A = TVs v"
+          assume [simp]: "distinct v"
+          assume [simp]: "TI C = TVs v @ TVs y"
+          assume eq: "[v \<leadsto> v] \<parallel> [u \<leadsto> y] oo C = [v \<leadsto> v] \<parallel> [u \<leadsto> z] oo C'"
+          assume [simp]: "TI C' = TVs v @ TVs z"
+          assume [simp]: "TVs z = TVs z'"
+          assume [simp]: "distinct z'"
+          assume [simp]: "set z \<subseteq> set u"
+
+          define x' where "x' \<equiv> newvars (x @ u) (TVs x)"
+
+          have [simp]: "distinct x'"
+            by (simp add: x'_def)
+
+          have [simp]: "TVs x' = TVs x"
+            by (simp add: x'_def)
+
+          have [simp]: "length x' = length x"
+            by (metis \<open>TVs x' = TVs x\<close> TVs_length_eq)
+
+          have "[u \<leadsto> x @ y] oo ( A \<parallel> [y' \<leadsto> y']) oo C = ([u \<leadsto> x @ u] oo [x' \<leadsto> x'] \<parallel> [u \<leadsto> y]) oo ( A \<parallel> [y' \<leadsto> y']) oo C"
+            by (simp add: switch_par_comp_Subst Subst_eq)
+          also have "... = [u \<leadsto> x @ u] oo ([x' \<leadsto> x'] \<parallel> [u \<leadsto> y] oo  A \<parallel> [y' \<leadsto> y']) oo C"
+            by (simp add: comp_assoc)
+          also have "... = [u \<leadsto> x @ u] oo A \<parallel> [u \<leadsto> y] oo C"
+            by (simp add: comp_parallel_distrib  )
+          also have "... = [u \<leadsto> x @ u] oo (A \<parallel> [u \<leadsto> u] oo [v \<leadsto> v] \<parallel> [u \<leadsto> y]) oo C"
+            by (simp add: comp_parallel_distrib)
+          also have "... = [u \<leadsto> x @ u] oo A \<parallel> [u \<leadsto> u] oo ([v \<leadsto> v] \<parallel> [u \<leadsto> y] oo C)"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> x @ u] oo A \<parallel> [u \<leadsto> u] oo ([v \<leadsto> v] \<parallel> [u \<leadsto> z] oo C')"
+            by (simp add: eq)
+          also have "... = [u \<leadsto> x @ u] oo (A \<parallel> [u \<leadsto> u] oo [v \<leadsto> v] \<parallel> [u \<leadsto> z]) oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> x @ u] oo A \<parallel> [u \<leadsto> z] oo C'"
+            by (simp add: comp_parallel_distrib)
+          also have "... = [u \<leadsto> x @ u] oo ([x' \<leadsto> x'] \<parallel> [u \<leadsto> z] oo A \<parallel> [z' \<leadsto> z']) oo C'"
+            by (simp add: comp_parallel_distrib)
+          also have "... = ([u \<leadsto> x @ u] oo [x' \<leadsto> x'] \<parallel> [u \<leadsto> z]) oo A \<parallel> [z' \<leadsto> z'] oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> x @ z] oo A \<parallel> [z' \<leadsto> z'] oo C'"
+            by (simp add: switch_par_comp_Subst Subst_eq)
+          finally show ?thesis
+            by simp
+        qed
+
+      lemma paralle_switch: "\<exists> x y u v. distinct (x @ y) \<and> distinct (u @ v) \<and> TVs x = TI A 
+        \<and> TVs u = TO A \<and> TVs y = TI B \<and> 
+        TVs v = TO B \<and> A \<parallel> B = [x @ y \<leadsto> y @ x] oo (B \<parallel> A) oo [v @ u \<leadsto> u @ v]"
+        apply (rule_tac x="newvars [] (TI A)" in exI)
+        apply (rule_tac x="newvars (newvars [] (TI A)) (TI B)" in exI)
+        apply (rule_tac x="newvars [] (TO A)" in exI)
+        apply (rule_tac x="newvars (newvars [] (TO A)) (TO B)" in exI)
+        by (subst switch_par, simp_all)
+
+      lemma par_switch_eq_dist: "distinct (u @ v) \<Longrightarrow> distinct y' \<Longrightarrow> distinct z' \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs v \<Longrightarrow> TI C = TVs v @ TVs y \<Longrightarrow> TVs y = TVs y' \<Longrightarrow>
+            TI C' = TVs v @ TVs z \<Longrightarrow> TVs z = TVs z' \<Longrightarrow>
+            set x \<subseteq> set u \<Longrightarrow> set y \<subseteq> set u \<Longrightarrow> set z \<subseteq> set u \<Longrightarrow> 
+            [v @ u \<leadsto> v @ y] oo C = [v @ u \<leadsto> v @ z] oo C' \<Longrightarrow> [u \<leadsto> x @ y] oo ( A \<parallel> [y' \<leadsto> y']) oo C = [u \<leadsto> x @ z] oo ( A \<parallel> [z' \<leadsto> z']) oo C'"  
+        apply (rule  par_switch_eq, simp_all)
+        by (simp add: par_switch Int_commute)
+
+      lemma par_switch_eq_dist_a: "distinct (u @ v) \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs v \<Longrightarrow> TI C = TVs v @ TVs y \<Longrightarrow> TVs y = ty \<Longrightarrow> TVs z = tz \<Longrightarrow>
+            TI C' = TVs v @ TVs z \<Longrightarrow> set x \<subseteq> set u \<Longrightarrow> set y \<subseteq> set u \<Longrightarrow> set z \<subseteq> set u \<Longrightarrow> 
+            [v @ u \<leadsto> v @ y] oo C = [v @ u \<leadsto> v @ z] oo C' \<Longrightarrow> [u \<leadsto> x @ y] oo A \<parallel> ID ty oo C = [u \<leadsto> x @ z] oo A \<parallel> ID tz oo C'"
+        apply (cut_tac y' = "newvars [] ty" and z' = "newvars [] tz" and C = C 
+            and x = x and y = y and z = z in par_switch_eq_dist, simp_all)
+        by (simp add: distinct_id)
+
+
+      lemma par_switch_eq_a: "distinct (u @ v) \<Longrightarrow> distinct y' \<Longrightarrow> distinct z' \<Longrightarrow> distinct t' \<Longrightarrow> distinct s'
+            \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs v \<Longrightarrow> TI C = TVs t @ TVs v @ TVs y \<Longrightarrow> TVs y = TVs y' \<Longrightarrow>
+            TI C' = TVs s @  TVs v @ TVs z \<Longrightarrow> TVs z = TVs z' \<Longrightarrow> TVs t = TVs t' \<Longrightarrow>  TVs s = TVs s' \<Longrightarrow>
+            set t \<subseteq> set u \<Longrightarrow> set x \<subseteq> set u \<Longrightarrow> set y \<subseteq> set u \<Longrightarrow> set s \<subseteq> set u \<Longrightarrow> set z \<subseteq> set u \<Longrightarrow>
+            [u @ v \<leadsto> t @ v @ y] oo C = [u @ v \<leadsto> s @ v @ z] oo C' \<Longrightarrow> 
+            [u \<leadsto> t @ x @ y] oo ([t' \<leadsto> t'] \<parallel> A \<parallel> [y' \<leadsto> y']) oo C = [u \<leadsto> s @ x @ z] oo ([s' \<leadsto> s'] \<parallel> A \<parallel> [z' \<leadsto> z']) oo C'"
+        proof -
+
+          assume [simp]: "distinct (u @ v)"
+          assume [simp]: "distinct y'"
+          assume [simp]: "distinct z'"
+          assume [simp]: "distinct t'"
+          assume [simp]: "distinct s'"
+          assume [simp]: "set t \<subseteq> set u"
+          assume [simp]: "set x \<subseteq> set u"
+          assume [simp]: "set y \<subseteq> set u"
+          assume [simp]: "set s \<subseteq> set u"
+          assume [simp]: "set z \<subseteq> set u"
+          assume [simp]: "TVs y = TVs y'"
+          assume [simp]: "TVs t = TVs t'"
+          assume [simp]: "TVs s = TVs s'"
+          assume [simp]: "TVs z = TVs z'"
+          assume [simp]: "TI A = TVs x"
+          assume [simp]: "TO A = TVs v"
+          assume [simp]: "TI C = TVs t @ TVs v @ TVs y"
+          assume [simp]: "TI C' = TVs s @  TVs v @ TVs z"
+          assume eq: "[u @ v \<leadsto> t @ v @ y] oo C = [u @ v \<leadsto> s @ v @ z] oo C'"
+
+          define x' where "x' \<equiv> newvars u (TVs x)"
+          define y'' where "y'' \<equiv> newvars (x' @ v) (TVs y')"
+          define z'' where "z'' \<equiv> newvars (x' @ v) (TVs z')"
+
+
+          have [simp]: "distinct u"
+            using \<open>distinct (u @ v)\<close> by fastforce
+
+          have [simp]: "distinct v"
+            using \<open>distinct (u @ v)\<close> by fastforce
+
+          have [simp]: "set u \<inter> set v = {}"
+            using \<open>distinct (u @ v)\<close> by fastforce
+
+
+          have [simp]: "distinct x'"
+            by (simp add: x'_def)
+
+          have [simp]: "set u \<inter> set x' = {}"
+            by (simp add: x'_def)
+
+          have [simp]: "TVs x' = TVs x"
+            by (simp add: x'_def)
+
+          have [simp]: "length x' = length x"
+            by (metis \<open>TVs x' = TVs x\<close> TVs_length_eq)
+
+          have [simp]: "set x' \<inter> set t = {}"
+            using \<open>set t \<subseteq> set u\<close> \<open>set u \<inter> set x' = {}\<close> by blast
+
+          have [simp]: "set x' \<inter> set y = {}"
+            using \<open>set y \<subseteq> set u\<close> \<open>set u \<inter> set x' = {}\<close> by blast
+
+          have [simp]: "distinct y''"
+            by (simp add: y''_def)
+
+          have [simp]: "set x' \<inter> set y'' = {}"
+            by (metis Diff_disjoint Int_commute diff_disjoint diff_union inter_subset newvars_old_distinct_a set_diff set_inter y''_def)
+
+          have [simp]: "set y'' \<inter> set v = {}"
+            by (metis Diff_disjoint Int_commute diff_disjoint diff_union newvars_old_distinct_a set_diff set_inter y''_def)
+
+          have [simp]: "TVs y'' = TVs y'"
+            by (simp add: y''_def)
+
+          have [simp]: "length t' = length t"
+            by (metis \<open>TVs t = TVs t'\<close> TVs_length_eq)
+
+          have [simp]: "length y' = length y"
+            by (metis \<open>TVs y = TVs y'\<close> TVs_length_eq)
+
+          have B: "TVs y'' = TVs y" 
+            by (simp add: y''_def)
+
+          have [simp]: "length y'' = length y"
+            by (metis \<open>TVs y'' = TVs y\<close> TVs_length_eq)
+
+          have [simp]: "set t \<subseteq> set u \<union> set x'"
+            by (metis Un_subset_iff \<open>set t \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set y \<subseteq> set u \<union> set x'"
+            by (metis Un_subset_iff \<open>set y \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set t \<subseteq> set u \<union> set v"
+            by (metis Un_subset_iff \<open>set t \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set y \<subseteq> set u \<union> set v"
+            by (metis Un_subset_iff \<open>set y \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "distinct z''"
+            by (simp add: z''_def)
+
+          have [simp]: "set z'' \<inter> set v = {}"
+            by (metis Diff_disjoint diff_disjoint diff_union newvars_old_distinct_a set_diff z''_def)
+            
+          have [simp]: "set s \<subseteq> set u \<union> set v"
+            by (metis Un_subset_iff \<open>set s \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set z \<subseteq> set u \<union> set v"
+            by (metis Un_subset_iff \<open>set z \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "TVs z' = TVs z''"
+            by (simp add: z''_def)
+
+          have [simp]: "length s' = length s"
+            by (metis  \<open>TVs s = TVs s'\<close> TVs_length_eq)
+
+          have [simp]: "length z' = length z"
+            by (metis  \<open>TVs z = TVs z'\<close> TVs_length_eq)
+
+          have A: "TVs z'' = TVs z"
+            by simp
+
+          have [simp]: "length z'' = length z"
+            by (metis \<open>TVs z'' = TVs z\<close> TVs_length_eq)
+
+          have [simp]: "set x' \<inter> set z'' = {}"
+            by (metis Int_commute inf_bot_right inf_left_commute inf_sup_absorb newvars_old_distinct_a set_append z''_def)
+
+          have [simp]: "set s \<subseteq> set u \<union> set x'"
+            by (metis Un_subset_iff \<open>set s \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set z \<subseteq> set u \<union> set x'"
+            by (metis Un_subset_iff \<open>set z \<subseteq> set u\<close> sup.absorb_iff1 sup_ge1)
+
+          have [simp]: "set x' \<inter> set s = {}"
+            using \<open>set s \<subseteq> set u\<close> \<open>set u \<inter> set x' = {}\<close> by blast
+
+          have [simp]: "set x' \<inter> set z = {}"
+            using \<open>set z \<subseteq> set u\<close> \<open>set u \<inter> set x' = {}\<close> by blast
+
+          have "[u \<leadsto> t @ x @ y] oo ([t' \<leadsto> t'] \<parallel> A \<parallel> [y' \<leadsto> y']) oo C = ([u \<leadsto> u @ x] oo [u @ x' \<leadsto> t @ x' @ y]) oo ([t' \<leadsto> t'] \<parallel> A \<parallel> [y' \<leadsto> y']) oo C"
+            apply (subst switch_comp_subst, simp_all)
+            by (simp add: Subst_append Subst_not_in Subst_not_in_a Subst_eq)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo [t' \<leadsto> t'] \<parallel> A \<parallel> [y' \<leadsto> y']) oo C"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo [t' \<leadsto> t'] \<parallel> (A \<parallel> [y' \<leadsto> y'])) oo C"
+            by (simp add: par_assoc)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo [t' \<leadsto> t'] \<parallel> (A \<parallel> [y'' \<leadsto> y''])) oo C"
+            by (simp add: y''_def switch_newvars)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo [t' \<leadsto> t'] \<parallel> ([x' @ y'' \<leadsto> y'' @ x'] oo [y'' \<leadsto> y''] \<parallel> A oo [y'' @ v \<leadsto> v @ y''])) oo C"
+            by (subst(2) switch_par, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo ([t' \<leadsto> t'] \<parallel> [x' @ y'' \<leadsto> y'' @ x'] oo [t' \<leadsto> t'] \<parallel> ([y'' \<leadsto> y''] \<parallel> A) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''])) oo C"
+            by (simp add: comp_parallel_distrib  )
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> t @ x' @ y] oo [t' \<leadsto> t'] \<parallel> [x' @ y'' \<leadsto> y'' @ x']) oo [t' \<leadsto> t'] \<parallel> ([y'' \<leadsto> y''] \<parallel> A) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo [u @ x' \<leadsto> (Subst t' t t') @ (Subst (x' @ y'') (x' @ y) (y'' @ x'))] oo [t' \<leadsto> t'] \<parallel> ([y'' \<leadsto> y''] \<parallel> A) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: switch_par_comp_Subst)
+          also have "... = [u \<leadsto> u @ x] oo [u @ x' \<leadsto> t @ y @ x'] oo [t' \<leadsto> t'] \<parallel> ([y'' \<leadsto> y''] \<parallel> A) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: Subst_append Subst_not_in Subst_not_in_a Subst_eq Int_commute)
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> t @ y] \<parallel> [x' \<leadsto> x'] oo ([t' \<leadsto> t'] \<parallel> [y'' \<leadsto> y'']) \<parallel> A oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            apply (simp add: par_assoc)
+            by (cut_tac x="u" and x'="t@y" and y="x'" and y'="x'" in par_switch, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> t @ y] \<parallel> [x' \<leadsto> x'] oo ([t' \<leadsto> t'] \<parallel> [y'' \<leadsto> y'']) \<parallel> A) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: comp_assoc )
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> t @ y] oo ([t' \<leadsto> t'] \<parallel> [y'' \<leadsto> y''])) \<parallel> A oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: comp_parallel_distrib)
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> t @ y] \<parallel> A oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: switch_par_comp_Subst)
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> u] oo [u \<leadsto> t @ y]) \<parallel> (A oo [v \<leadsto> v]) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: )
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> u] \<parallel> A  oo [u \<leadsto> t @ y] \<parallel> [v \<leadsto> v]) oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y''] oo C"
+            by (simp add: comp_parallel_distrib )
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A  oo ([u @ v \<leadsto> t @ y @ v] oo [t' \<leadsto> t'] \<parallel> [y'' @ v \<leadsto> v @ y'']) oo C"
+            by (simp add: comp_assoc par_switch  )
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A  oo [u @ v \<leadsto> t @ v @ y] oo C"
+            apply (simp add: switch_par_comp_Subst Subst_append Subst_not_in_a)
+            apply (subst Subst_not_in, simp_all)
+            using \<open>set y'' \<inter> set v = {}\<close> by blast
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A  oo ([u @ v \<leadsto> t @ v @ y] oo C)"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A oo ([u @ v \<leadsto> s @ v @ z] oo C')"
+            by (simp add: eq)
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A oo [u @ v \<leadsto> s @ v @ z] oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> u] \<parallel> A  oo ([u @ v \<leadsto> s @ z @ v] oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z'']) oo C'"
+            apply (subst switch_par_comp_Subst, simp_all)
+            apply (simp add: Subst_append Subst_not_in_a)
+            apply (subst Subst_not_in, simp_all)
+            using \<open>set z'' \<inter> set v = {}\<close> by blast
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> u] \<parallel> A  oo [u \<leadsto> s @ z] \<parallel> [v \<leadsto> v]) oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            apply (simp add: comp_assoc  )
+            by (cut_tac x=u and x'="s@z" and y=v and y'=v in par_switch, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> s @ z] \<parallel> A oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            by (simp add: comp_parallel_distrib)
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> s @ z] oo ([s' \<leadsto> s'] \<parallel> [z'' \<leadsto> z''])) \<parallel> A oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            by (simp add: switch_par_comp_Subst)
+          also have "... = [u \<leadsto> u @ x] oo ([u \<leadsto> s @ z] \<parallel> [x' \<leadsto> x'] oo ([s' \<leadsto> s'] \<parallel> [z'' \<leadsto> z'']) \<parallel> A) oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            by (subst comp_parallel_distrib, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo [u \<leadsto> s @ z] \<parallel> [x' \<leadsto> x'] oo ([s' \<leadsto> s'] \<parallel> [z'' \<leadsto> z'']) \<parallel> A oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo [u @ x' \<leadsto> s @ z @ x'] oo [s' \<leadsto> s'] \<parallel> ([z'' \<leadsto> z''] \<parallel> A) oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            by (simp add: par_assoc par_switch)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo [s' \<leadsto> s'] \<parallel> [x' @ z'' \<leadsto> z'' @ x']) oo [s' \<leadsto> s'] \<parallel> ([z'' \<leadsto> z''] \<parallel> A) oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''] oo C'"
+            apply (subst switch_par_comp_Subst, simp_all)
+            by (simp add: Subst_append Subst_not_in_a Subst_not_in Int_commute)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo ([s' \<leadsto> s'] \<parallel> [x' @ z'' \<leadsto> z'' @ x'] oo [s' \<leadsto> s'] \<parallel> ([z'' \<leadsto> z''] \<parallel> A) oo [s' \<leadsto> s'] \<parallel> [z'' @ v \<leadsto> v @ z''])) oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo [s' \<leadsto> s'] \<parallel> ([x' @ z'' \<leadsto> z'' @ x'] oo [z'' \<leadsto> z''] \<parallel> A oo [z'' @ v \<leadsto> v @ z''])) oo C'"
+            by (simp add: comp_parallel_distrib  )
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo [s' \<leadsto> s'] \<parallel> (A \<parallel> [z'' \<leadsto> z''])) oo C'"
+            by (cut_tac T="[z'' \<leadsto> z'']" and S=A and x=x' and y=z'' and u=z'' and v=v in switch_par, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo [s' \<leadsto> s'] \<parallel> (A \<parallel> [z' \<leadsto> z'])) oo C'"
+            apply (simp only: z''_def) 
+            by (subst switch_newvars, simp_all)
+          also have "... = [u \<leadsto> u @ x] oo ([u @ x' \<leadsto> s @ x' @ z] oo [s' \<leadsto> s'] \<parallel> A \<parallel> [z' \<leadsto> z']) oo C'"
+            by (simp add: par_assoc)
+          also have "... = ([u \<leadsto> u @ x] oo [u @ x' \<leadsto> s @ x' @ z]) oo ([s' \<leadsto> s'] \<parallel> A \<parallel> [z' \<leadsto> z']) oo C'"
+            by (simp add: comp_assoc  )
+          also have "... = [u \<leadsto> s @ x @ z] oo ([s' \<leadsto> s'] \<parallel> A \<parallel> [z' \<leadsto> z']) oo C'"
+            apply (subst switch_comp_subst, simp_all)
+            by (simp add: Subst_append Subst_not_in Subst_not_in_a Subst_eq)
+
+          finally show ?thesis
+            by simp
+        qed
+
+    lemma length_TVs: "length (TVs x) = length x"
+        by (induction x, simp_all)
+
+      lemma comp_par: "distinct x \<Longrightarrow> set y \<subseteq> set x \<Longrightarrow> [x \<leadsto> x @ x] oo [x \<leadsto> y] \<parallel> [x \<leadsto> y] = [x \<leadsto> y @ y]"
+        by (subst switch_par_comp_Subst, simp_all add: set_addvars Subst_eq)
+
+      lemma Subst_switch_a: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> set z \<subseteq> set x \<Longrightarrow> TVs x = TVs y \<Longrightarrow> [x \<leadsto> z] = [y \<leadsto> Subst x y z]"
+        by (metis distinct_id order_refl switch_comp_a switch_comp_subst)
+
+       lemma change_var_names: "distinct a \<Longrightarrow> distinct b \<Longrightarrow> TVs a = TVs b \<Longrightarrow> [a \<leadsto> a @ a] = [b \<leadsto> b @ b]"
+        by (simp add: Switch_Split)
+
+
+      lemma deterministicE: "deterministic A \<Longrightarrow> distinct x \<Longrightarrow> distinct y \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs y 
+        \<Longrightarrow> [x \<leadsto> x @ x] oo (A \<parallel> A) = A oo [y \<leadsto> y @ y]"
+        by (simp add: deterministic_def Switch_Split)
+
+      lemma deterministicI: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> TI A = TVs x \<Longrightarrow> TO A = TVs y \<Longrightarrow> 
+        [x \<leadsto> x @ x] oo A \<parallel> A = A oo [y \<leadsto> y @ y] \<Longrightarrow> deterministic A"
+        by (simp add: deterministic_def Switch_Split)
 
   end
 end

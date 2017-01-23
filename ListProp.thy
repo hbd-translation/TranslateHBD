@@ -1,6 +1,7 @@
 theory ListProp imports Main "~~/src/HOL/Library/Multiset"
 begin
-  section{*List permutations*}
+section{*List Operations. Permutations and Substitutions*}
+  
   definition "perm x y = (mset x = mset y)"
 
   lemma perm_tp: "perm (x@y) (y@x)"
@@ -27,12 +28,26 @@ begin
 
    lemma perm_set_eq: "perm x y \<Longrightarrow> set x = set y"
      by (metis perm_def set_mset_mset)
+       
+     lemma perm_empty[simp]: "(perm [] v) = (v = [])" and "(perm v []) = (v = [])"
+      by (simp_all add: perm_def)
 
-  section{*List Substitutions*}
+      lemma split_perm: "perm (a # x) x' = (\<exists> y y' . x' = y @ a # y' \<and> perm x (y @ y'))"
+        apply safe
+        apply (subgoal_tac "\<exists> y y' .  x' = y @ a # y'")
+        apply safe
+        apply (rule_tac x = y in exI)
+        apply (rule_tac x = y' in exI, simp_all)
+          apply (simp add: perm_def)
+        apply (drule perm_set_eq)
+        apply (simp add: set_eq_iff)
+        using split_list apply fastforce
+          by (simp add: perm_def)
 
   fun subst:: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a \<Rightarrow> 'a" where
     "subst [] [] c = c" |
-    "subst (a#x) (b#y) c = (if a = c then b else subst x y c)"
+    "subst (a#x) (b#y) c = (if a = c then b else subst x y c)" |
+    "subst x y c = undefined"
 
   lemma subst_notin [simp]: "\<And> y . length x = length y \<Longrightarrow> a \<notin> set x \<Longrightarrow> subst x y a = a"
     apply (induction x, simp_all)
@@ -419,5 +434,162 @@ begin
         apply (rule_tac y = "set u' \<union> (set z - set u)" in order_trans)
         by (rule set_Subst_a, simp_all)
 
+  lemma not_in_set_diff: "a \<notin> set x \<Longrightarrow> x \<ominus> ys @ a # zs = x \<ominus> ys @ zs"
+    by (induction x, auto)
+      
+  lemma [simp]: "(X \<inter> (Y \<union> Z) = {}) = (X \<inter> Y = {} \<and> X \<inter> Z = {})"
+    by auto
+      
+      (*very specialized*)  
+      lemma Comp_assoc_new_subst_aux: "set u \<inter> set y \<inter> set z = {} \<Longrightarrow> distinct z \<Longrightarrow> length u = length u' 
+        \<Longrightarrow> Subst (z \<ominus> v) (Subst u u' (z \<ominus> v)) z = Subst (u \<ominus> y \<ominus> v) (Subst u u' (u \<ominus> y \<ominus> v)) z"
+        apply (induction z, simp_all, auto)
+        apply (subst subst_notin)
+        apply (simp_all add: set_diff)
+        apply (case_tac "a \<in> set u", simp_all)
+        apply (cut_tac z = "[a]" in Subst_Subst [of u u' _ "(u \<ominus> y \<ominus> v)"], simp_all)
+        by (simp_all add: set_diff)
+
+      lemma [simp]: "(x \<ominus> y \<ominus> (y \<ominus> z)) = (x \<ominus> y)"
+        by (induction x, simp_all, auto simp add: set_diff)
+
+      lemma [simp]: "(x \<ominus> y \<ominus> (y \<ominus> z \<ominus> z')) = (x \<ominus> y)"
+        by (induction x, simp_all, auto simp add: set_diff)
+
+      lemma diff_addvars: "x \<ominus> (y \<oplus> z) = (x \<ominus> y \<ominus> z)"
+        by (induction x, auto simp add: set_diff set_addvars)
+
+      lemma diff_redundant_a: "x \<ominus> y \<ominus> z \<ominus> (y \<ominus> u) = (x \<ominus> y \<ominus> z)"
+        by (induction x, simp_all add: set_diff)
+
+      lemma diff_redundant_b: "x \<ominus> y \<ominus> z \<ominus> (z \<ominus> u) = (x \<ominus> y \<ominus> z)"
+        by (induction x, simp_all add: set_diff)
+
+      lemma diff_redundant_c: "x \<ominus> y \<ominus> z \<ominus> (y \<ominus> u \<ominus> v) = (x \<ominus> y \<ominus> z)"
+        by (induction x, simp_all add: set_diff)
+
+      lemma diff_redundant_d: "x \<ominus> y \<ominus> z \<ominus> (z \<ominus> u \<ominus> v) = (x \<ominus> y \<ominus> z)"
+        by (induction x, simp_all add: set_diff)
+
+   lemma set_list_empty: "set x = {} \<Longrightarrow> x = []"
+      by (induction x, simp_all)
+
+    lemma [simp]: "(x \<ominus> x \<otimes> y) \<otimes> (y \<ominus> x \<otimes> y) = []"
+      apply (rule set_list_empty)
+      by (simp add: set_inter set_diff, auto)
+
+    lemma [simp]: "set x \<inter> set (y \<ominus> x) = {}"
+      by (simp add: set_diff)
+
+    lemma [simp]:" distinct x \<Longrightarrow> distinct y \<Longrightarrow> set x \<subseteq> set y \<Longrightarrow> perm (x @ (y \<ominus> x)) y"
+      using diff_subset perm_switch by fastforce
+
+    lemma [simp]: "perm x y \<Longrightarrow> set x \<subseteq> set y"
+      by (simp add: perm_set_eq)
+    lemma [simp]: "perm x y \<Longrightarrow> set y \<subseteq> set x"
+      by (simp add: perm_set_eq)
+
+    lemma [simp]: "set (x \<ominus> y) \<subseteq> set x"
+      by (auto simp add: set_diff)
+        
+      lemma perm_diff[simp]: "\<And> x' . perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x \<ominus> y) (x' \<ominus> y')"
+        apply (induction x, simp_all)
+        apply (frule_tac x = y and y = y' in perm_set_eq, simp)
+        apply (simp add: split_perm union_diff)
+        apply auto
+        apply (simp_all add: union_diff)
+        apply (metis union_diff)
+        by (metis union_diff)
+
+    lemma [simp]: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x @ y) (x' @ y')"
+      by (simp add: perm_def)
+
+    lemma [simp]: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x \<oplus> y) (x' \<oplus> y')"
+      by (simp add: addvars_def)
+
+    declare distinct_diff [simp]
+    declare perm_set_eq [simp]
+
+    lemma [simp]: "\<And> x' . perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x \<otimes> y) (x' \<otimes> y')"
+      apply (induction x, simp_all, safe)
+      apply (simp add: split_perm, safe, simp_all)
+      apply (rule_tac x = "ya \<otimes> y'" in exI)
+      apply (rule_tac x = "y'a \<otimes> y'" in exI)
+      apply (simp add: append_inter)
+      apply (subgoal_tac "perm (x \<otimes> y) ((ya @ y'a) \<otimes> y')")
+      apply (subst (asm) append_inter, simp_all)
+
+      apply (simp add: split_perm, safe, simp_all)
+      apply (subgoal_tac "perm (x \<otimes> y) ((ya @ y'a) \<otimes> y')")
+      apply (subst (asm) append_inter, simp add: append_inter)
+      by simp
+
+    declare distinct_inter [simp]
+
+    lemma perm_ops: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+      apply safe
+      by (simp_all)
+      
+
+    lemma [simp]: "perm x' x \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+      
+    lemma [simp]: "perm x x' \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+
+    lemma [simp]: "perm x' x \<Longrightarrow> perm y y' \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+
+      lemma diff_cons: "(x \<ominus> (a # y)) = (x \<ominus> [a] \<ominus> y)"
+        by (induction x, simp_all)
+
+    lemma [simp]: "x \<oplus> y \<oplus> x = x \<oplus> y"
+        apply (simp add: addvars_def)
+        by (simp add: diff_eq diff_union)
+
+      lemma  subst_subst_inv: "\<And> y . distinct y \<Longrightarrow> length x = length y \<Longrightarrow> a \<in> set x \<Longrightarrow> subst y x (subst x y a) = a"
+        by (induction x, auto)
+              
+
+      lemma Subst_Subst_inv: "distinct y \<Longrightarrow> length x = length y \<Longrightarrow> set z \<subseteq> set x \<Longrightarrow> Subst y x (Subst x y z) = z"
+        apply (induction z)
+        by (simp_all add: subst_subst_inv)
+
+      (*move*)
+      lemma perm_append: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x @ y) (x' @ y')"
+        by (simp add: perm_def)
+
+
+
+      lemma "x' = y @ a # y' \<Longrightarrow> perm x (y @ y') \<Longrightarrow> perm (a # x) x'"
+        by (simp add: perm_def)
+
+
+      lemma perm_refl[simp]: "perm x x"
+        by (simp add: perm_def)
+
+      lemma perm_diff_eq[simp]: "perm y y' \<Longrightarrow> (x \<ominus> y) = (x \<ominus> y')"
+        apply (drule perm_set_eq)
+        by (induction x, auto)
+
+      lemma [simp]: "A \<inter> B = {} \<Longrightarrow> x \<in> A \<Longrightarrow> x \<in> B \<Longrightarrow> False"
+        by auto
+      lemma [simp]: "A \<inter> B = {} \<Longrightarrow> x \<in> A \<Longrightarrow> x \<notin> B"
+        by auto
+
+      lemma [simp]: "B \<inter> A = {} \<Longrightarrow> x \<in> A \<Longrightarrow> x \<notin> B"
+        by auto
+      lemma [simp]: "B \<inter> A = {} \<Longrightarrow> x \<in> A \<Longrightarrow> x \<in> B \<Longrightarrow> False"
+        by auto
+
+  lemma distinct_perm_set_eq: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm x y = (set x = set y)"
+        using perm_def set_eq_iff_mset_eq_distinct by blast
+
+      lemma set_perm: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> set x = set y \<Longrightarrow> perm x y"
+        by (simp add: distinct_perm_set_eq)
+
+      lemma distinct_perm_switch: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm (x \<oplus> y) (y \<oplus> x)"
+        apply (simp add: addvars_def)
+        by (rule set_perm, simp_all add: set_diff, auto)
 
 end

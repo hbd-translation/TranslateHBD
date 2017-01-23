@@ -1,6 +1,6 @@
 theory Model imports AbstractOperations Constructive
 begin
-
+  section{*Model of the HBD Algebra*}
 
   datatype Types = int | bool | nat
 
@@ -131,11 +131,13 @@ begin
   
   fun pref :: "Values list \<Rightarrow> Types list \<Rightarrow> Values list" where
     "pref v [] = []" |
-    "pref (a # v) (t # x) = (if tv a = t then a # pref v x else undefined)"
+    "pref (a # v) (t # x) = (if tv a = t then a # pref v x else undefined)" |
+    "pref v x = undefined"
 
   fun suff :: "Values list \<Rightarrow> Types list \<Rightarrow> Values list" where
     "suff v [] = v" |
-    "suff (a # v) (t # x) = (if tv a = t then suff v x else undefined)"
+    "suff (a # v) (t # x) = (if tv a = t then suff v x else undefined)" |
+    "suff v x = undefined"
     
   lemma tp_pref_suff: "\<And> x y . tp v = x @ y \<Longrightarrow> tp (pref v x) = x \<and> tp (suff v x) = y"
     apply (induction v, simp_all)
@@ -270,7 +272,8 @@ begin
     by (simp add: has_in_out_type_def has_in_type_def, auto)
 
   lemma has_type_type_in_a: "f v = None \<Longrightarrow> f \<in> has_in_out_type x y \<Longrightarrow> tp v \<noteq> x"
-    apply (simp add: has_in_out_type_def has_in_type_def dom_def set_eq_iff, auto)
+    apply (simp add: has_in_out_type_def has_in_type_def dom_def)
+    apply (unfold set_eq_iff, safe)
     by (drule_tac x = v in spec, simp)
     
   lemma has_type_defined: "f \<in> has_in_out_type x y \<Longrightarrow> tp v = x \<Longrightarrow> \<exists> u . f v = Some u"
@@ -281,7 +284,7 @@ begin
   
   lemma fb_type: "f \<in> has_in_out_type (t # x) (t # y) \<Longrightarrow> fb_f f \<in> has_in_out_type x y"
     apply (subst has_in_out_type_def)
-    apply (simp add: has_out_type_def has_in_type_def fb_f_def dom_def image_def set_eq_iff subset_eq, safe)
+    apply (simp add: has_out_type_def has_in_type_def fb_f_def dom_def image_def subset_eq, safe)
     apply (simp_all add: type_has_type)
     apply (frule_tac v = "(fb_t t (\<lambda>a::Values. hd (the (f (a # xa)))) # xa)" in has_type_out_type)
     by (simp_all add: tp_append tp_tail)
@@ -586,7 +589,7 @@ begin
       have TI_f_f[simp]: "TI_f f = t' # t # ts"
         using \<open>f \<in> has_in_out_type (t' # t # ts) (t' # t # ts')\<close> type_has_type(1) by blast
       
-      def g \<equiv> "(\<lambda> v . (if tp v = t # t' # ts then case v of a # b # v' \<Rightarrow> (case f (b # a # v') of Some (c # d # u) \<Rightarrow> Some (d # c # u)) else None))"
+      define g where "g \<equiv> (\<lambda> v . (if tp v = t # t' # ts then case v of a # b # v' \<Rightarrow> (case f (b # a # v') of Some (c # d # u) \<Rightarrow> Some (d # c # u)) else None))"
 
       have A[simp]: "(par_f (Switch_f [t'] [t]) (ID_f ts') \<circ>\<^sub>m (f \<circ>\<^sub>m par_f (Switch_f [t] [t']) (ID_f ts))) = g"
         by (simp add: g_def fb_switch_aux)
@@ -662,7 +665,7 @@ begin
       have [simp]: "TI_f g = t # t' # ts"
         using \<open>g \<in> has_in_out_type (t # t' # ts) (t # t' # ts')\<close> type_has_type(1) by blast
 
-      def fbt \<equiv> "(\<lambda> v . fb_t t' (\<lambda>a . hd (the (f (a # v)))))"
+      define fbt where "fbt \<equiv> (\<lambda> v . fb_t t' (\<lambda>a . hd (the (f (a # v)))))"
       have fbt_simp: "\<And> v . fbt v = fb_t t' (\<lambda>a . hd (the (f (a # v))))"
         by (simp add: fbt_def)
 
@@ -677,7 +680,7 @@ begin
         by (simp add: fb_f_def)
         
 (****)
-      def fbg \<equiv> "(\<lambda> v . fb_t t (\<lambda>a . hd (the (g (a # v)))))"
+      define fbg where "fbg \<equiv> (\<lambda> v . fb_t t (\<lambda>a . hd (the (g (a # v)))))"
       have fbg_simp: "\<And> v . fbg v = fb_t t (\<lambda>a . hd (the (g (a # v))))"
         by (simp add: fbg_def)
 
@@ -693,12 +696,12 @@ begin
 
 (****)
         
-      def f' \<equiv> "fb_f f"
+      define f' where "f' \<equiv> fb_f f"
       
       have [simp]: "TI_f f' = t # ts"
         using \<open>f \<in> has_in_out_type (t' # t # ts) (t' # t # ts')\<close> f'_def fb_type type_has_type(1) by blast
 
-      def fbt' \<equiv> "(\<lambda> v . fb_t t (\<lambda>a . hd (the (f' (a # v)))))"
+      define fbt' where "fbt' \<equiv> (\<lambda> v . fb_t t (\<lambda>a . hd (the (f' (a # v)))))"
       have fbt'_simp: "\<And> v . fbt' v = fb_t t (\<lambda>a . hd (the (f' (a # v))))"
         by (simp add: fbt'_def)
       
@@ -708,12 +711,12 @@ begin
       have [simp]: "\<And> v . tp v \<noteq> ts \<Longrightarrow> fb_f f' v = None"
         by (simp add: fb_f_def fun_eq_iff fbt'_simp [THEN sym])
         
-      def g' \<equiv> "fb_f g"
+      define g' where "g' \<equiv> fb_f g"
       
       have [simp]: "TI_f g' = t' # ts"
         using \<open>g \<in> has_in_out_type (t # t' # ts) (t # t' # ts')\<close> fb_type g'_def type_has_type(1) by blast
 
-      def fbg' \<equiv> "(\<lambda> v . fb_t t' (\<lambda>a . hd (the (g' (a # v)))))"
+      define fbg' where "fbg' \<equiv> (\<lambda> v . fb_t t' (\<lambda>a . hd (the (g' (a # v)))))"
       have fbg'_simp: "\<And> v . fbg' v = fb_t t' (\<lambda>a . hd (the (g' (a # v))))"
         by (simp add: fbg'_def)
       
@@ -1087,15 +1090,6 @@ begin
   declare TO_f_par [simp]
 
   declare TI_f_par [simp]
-(*
-  lemma [simp]: "f \<in> typed_func \<Longrightarrow> g \<in> typed_func \<Longrightarrow> TI_f f = TO_f g \<Longrightarrow> TO_f (f \<circ>\<^sub>m g) = TO_f f"
-    apply (simp add: typed_func_def, safe)
-    by (metis map_comp_type type_has_type(1) type_has_type(2))
-
-  lemma [simp]: "f \<in> typed_func \<Longrightarrow> g \<in> typed_func \<Longrightarrow> TI_f f = TO_f g \<Longrightarrow> TI_f (f \<circ>\<^sub>m g) = TI_f g"
-    apply (simp add: typed_func_def, safe)
-    by (metis map_comp_type type_has_type(1) type_has_type(2))
-*)
 
   lemma [simp]: "\<And> ts .  tp x = ts @ ts' @ ts'' \<Longrightarrow> pref (suff x ts) ts' @ suff x (ts @ ts') = suff x ts"
     apply (induction x, simp_all)
@@ -1111,9 +1105,6 @@ begin
 
   lemma AAAb: "S x \<noteq> None \<Longrightarrow> tv a = t \<Longrightarrow> tp x = TI_f S \<Longrightarrow> ((par_f (ID_f [t]) S) (a # x)) = Some (a # the (S x))"
     by (simp add: par_f_def)
-(*
-  lemma "(\<And> x . tv x = t \<Longrightarrow> f x = g x) \<Longrightarrow> fb_t t f = fb_t t g"
-*)
 
   lemma pref_suff_append: "\<And> ts . tp x = ts @ ts' \<Longrightarrow> pref x ts @ suff x ts = x"
     apply (induction x)
@@ -1330,7 +1321,7 @@ begin
       apply (meson \<open>\<And>B. Rep_func B \<in> has_in_out_type (TI_f (Rep_func B)) (TO_f (Rep_func B))\<close> has_type_type_in map_comp_Some_iff)
       proof - 
         fix x a ab aa
-        def b \<equiv> "fb_t t (\<lambda>a. hd (the ((par_f (ID_f [t]) (Rep_func B) \<circ>\<^sub>m (Rep_func S \<circ>\<^sub>m par_f (ID_f [t]) (Rep_func A))) (a # x))))"
+        define b where "b \<equiv> fb_t t (\<lambda>a. hd (the ((par_f (ID_f [t]) (Rep_func B) \<circ>\<^sub>m (Rep_func S \<circ>\<^sub>m par_f (ID_f [t]) (Rep_func A))) (a # x))))"
 
         assume "TI_f (Rep_func S) = t # TO_f (Rep_func A)"
         assume "TO_f (Rep_func S) = t # TI_f (Rep_func B)"

@@ -1,16 +1,13 @@
 theory Constructive imports Main
 begin
-  section{*Constructive Semantics*}
+  section{*Constructive Functions*}
 
- 
   notation
     bot ("\<bottom>") and
     top ("\<top>") and
     inf (infixl "\<sqinter>" 70)
     and sup (infixl "\<squnion>" 65)
-(*
-  datatype 'a fail_option = Fail ("\<bullet>") | OK (elem :'a)
-*)
+
   class order_bot_max = order_bot +
     fixes maximal :: "'a \<Rightarrow> bool"
     assumes maximal_def: "maximal x = (\<forall> y . \<not> x < y)"

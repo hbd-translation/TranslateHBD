@@ -1,5 +1,7 @@
 theory Hoare imports Refinement
 begin
+section{*Hoare Total Correctness Rules.*}
+  
    definition "if_stm p S T = ([.p.] o S) \<sqinter> ([.-p.] o T)"
    definition "while_stm p S = lfp (\<lambda> X . if_stm p (S o X) Skip)"
    definition "Hoare p S q = (p \<le> S q)"

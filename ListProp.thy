@@ -1,36 +1,41 @@
-theory ListProp imports Main "~~/src/HOL/Library/Multiset"
+theory ListProp imports Main "~~/src/HOL/Library/Permutation"
 begin
 section{*List Operations. Permutations and Substitutions*}
   
-  definition "perm x y = (mset x = mset y)"
+lemma perm_mset: "perm x y = (mset x = mset y)"
+  by (simp add: mset_eq_perm)
 
-  lemma perm_tp: "perm (x@y) (y@x)"
-    by (simp add: perm_def union_commute)
+lemma perm_tp: "perm (x@y) (y@x)"
+  by (simp add: perm_mset union_commute)
 
   lemma perm_union_left: "perm x z \<Longrightarrow> perm (x @ y) (z @ y)"
-    by (simp add: perm_def)
+    by (simp add: perm_mset)
 
   lemma perm_union_right: "perm x z \<Longrightarrow> perm (y @ x) (y @ z)"
-    by (simp add: perm_def)
+    by (simp add: perm_mset)
 
   lemma perm_trans: "perm x y \<Longrightarrow> perm y z \<Longrightarrow> perm x z"
-    by (simp add: perm_def)
+    by (simp add: perm_mset)
 
   lemma perm_sym: "perm x y \<Longrightarrow> perm y x"
-    
-    by (simp add: perm_def)
+    by (simp add: perm_mset)
 
   lemma perm_length: "perm u v \<Longrightarrow> length u = length v"
-    by (metis perm_def size_mset)
-
-  lemma dist_perm: "\<And> y . distinct x \<Longrightarrow> perm x y \<Longrightarrow> distinct y"
-    by (metis card_distinct distinct_card mset_eq_setD perm_def perm_length )
+    by (metis perm_mset size_mset)
 
    lemma perm_set_eq: "perm x y \<Longrightarrow> set x = set y"
-     by (metis perm_def set_mset_mset)
+     by (metis perm_mset set_mset_mset)
        
      lemma perm_empty[simp]: "(perm [] v) = (v = [])" and "(perm v []) = (v = [])"
-      by (simp_all add: perm_def)
+       by (simp_all add: perm_mset)
+         
+      lemma perm_refl[simp]: "perm x x"
+        by (simp add: perm_mset)
+
+
+  lemma dist_perm: "\<And> y . distinct x \<Longrightarrow> perm x y \<Longrightarrow> distinct y"
+    by (metis card_distinct distinct_card mset_eq_setD perm_mset perm_length )
+
 
       lemma split_perm: "perm (a # x) x' = (\<exists> y y' . x' = y @ a # y' \<and> perm x (y @ y'))"
         apply safe
@@ -38,11 +43,11 @@ section{*List Operations. Permutations and Substitutions*}
         apply safe
         apply (rule_tac x = y in exI)
         apply (rule_tac x = y' in exI, simp_all)
-          apply (simp add: perm_def)
+          apply (simp add: perm_mset)
         apply (drule perm_set_eq)
         apply (simp add: set_eq_iff)
         using split_list apply fastforce
-          by (simp add: perm_def)
+          by (simp add: perm_mset)
 
   fun subst:: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a \<Rightarrow> 'a" where
     "subst [] [] c = c" |
@@ -188,7 +193,7 @@ section{*List Operations. Permutations and Substitutions*}
     by (induction x, simp_all)
 
   lemma inter_append: "set y \<inter> set z = {} \<Longrightarrow> perm (x \<otimes> (y @ z)) ((x \<otimes> y) @ (x \<otimes> z))"
-    apply (induction x, simp_all add: perm_def)
+    apply (induction x, simp_all add: perm_mset)
     apply safe
     by blast
 
@@ -333,31 +338,32 @@ section{*List Operations. Permutations and Substitutions*}
     by auto
 
   lemma perm_diff_left_inter: "perm (x \<ominus> y) (((x \<ominus> y) \<otimes> z) @ ((x \<ominus> y) \<ominus> z))"
-    apply (simp add: diff_filter inter_filter perm_def)
+    apply (simp add: diff_filter inter_filter perm_mset)
     by (metis filter_filter mset_compl_union)
     
   lemma perm_diff_right_inter: "perm (x \<ominus> y) (((x \<ominus> y) \<ominus> z) @ ((x \<ominus> y) \<otimes> z))"  
-    by (metis perm_def perm_diff_left_inter perm_tp)      
+    by (metis perm_mset perm_diff_left_inter perm_tp)      
 
 
   lemma perm_switch_aux_a: "perm x ((x \<ominus> y) @ (x \<otimes> y))"
     by (metis diff_emptyset perm_diff_right_inter)
 
   lemma perm_switch_aux_b: "perm (x @ (y \<ominus> x)) ((x \<ominus> y) @ (x \<otimes> y) @ (y \<ominus> x))"
-    by (metis perm_switch_aux_a append_assoc mset_append perm_def)
+    by (metis perm_switch_aux_a append_assoc mset_append perm_mset)
 
   lemma perm_switch_aux_c: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm ((y \<otimes> x) @ (y \<ominus> x)) y"
-    by (metis perm_switch_aux_a perm_def perm_tp)
+    by (metis perm_switch_aux_a perm_mset perm_tp)
 
   lemma perm_switch_aux_d: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm (x \<otimes> y) (y \<otimes> x)"
-    by (metis distinct_inter inf.commute perm_def set_eq_iff_mset_eq_distinct set_inter)
+    by (metis distinct_inter inf.commute perm_mset set_eq_iff_mset_eq_distinct set_inter)
      
   lemma perm_switch_aux_e: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm ((x \<otimes> y) @ (y \<ominus> x)) ((y \<otimes> x) @ (y \<ominus> x))"
     by (simp add: perm_union_left perm_switch_aux_d)
 
   lemma perm_switch_aux_f: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm ((x \<otimes> y) @ (y \<ominus> x)) y"
     apply (cut_tac x="((x \<otimes> y) @ (y \<ominus> x))"  and y ="((y \<otimes> x) @ (y \<ominus> x))" and z="y" in perm_trans)
-    apply (simp add: perm_switch_aux_e)
+      apply (simp add: perm_switch_aux_e)
+      apply (simp add: perm_switch_aux_d)
     apply (simp add: perm_switch_aux_c)
     by simp
       
@@ -366,8 +372,8 @@ section{*List Operations. Permutations and Substitutions*}
 
   lemma perm_switch: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm (x @ (y \<ominus> x)) ((x \<ominus> y) @ y)"
     apply (cut_tac x="(x @ (y \<ominus> x))"  and y ="((x \<ominus> y) @ (x \<otimes> y) @ (y \<ominus> x))" and z="((x \<ominus> y) @ y)" in perm_trans)
-    apply (simp add: perm_switch_aux_b)
-    apply (simp add: perm_switch_aux_h)
+      apply (simp add: perm_switch_aux_b)
+      using perm_switch_aux_h apply blast
     by simp
 
   lemma perm_aux_a: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> x \<otimes> y = x \<Longrightarrow> perm (x @ (y \<ominus> x)) y"
@@ -481,8 +487,8 @@ section{*List Operations. Permutations and Substitutions*}
     lemma [simp]: "set x \<inter> set (y \<ominus> x) = {}"
       by (simp add: set_diff)
 
-    lemma [simp]:" distinct x \<Longrightarrow> distinct y \<Longrightarrow> set x \<subseteq> set y \<Longrightarrow> perm (x @ (y \<ominus> x)) y"
-      using diff_subset perm_switch by fastforce
+lemma [simp]:" distinct x \<Longrightarrow> distinct y \<Longrightarrow> set x \<subseteq> set y \<Longrightarrow> perm (x @ (y \<ominus> x)) y"
+  by (metis append_Nil diff_subset perm_switch)
 
     lemma [simp]: "perm x y \<Longrightarrow> set x \<subseteq> set y"
       by (simp add: perm_set_eq)
@@ -502,14 +508,17 @@ section{*List Operations. Permutations and Substitutions*}
         by (metis union_diff)
 
     lemma [simp]: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x @ y) (x' @ y')"
-      by (simp add: perm_def)
+      by (simp add: perm_mset)
 
     lemma [simp]: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x \<oplus> y) (x' \<oplus> y')"
       by (simp add: addvars_def)
 
-    declare distinct_diff [simp]
+    thm distinct_diff
+      
+declare distinct_diff [simp]
+  (*
     declare perm_set_eq [simp]
-
+*)
     lemma [simp]: "\<And> x' . perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x \<otimes> y) (x' \<otimes> y')"
       apply (induction x, simp_all, safe)
       apply (simp add: split_perm, safe, simp_all)
@@ -517,7 +526,7 @@ section{*List Operations. Permutations and Substitutions*}
       apply (rule_tac x = "y'a \<otimes> y'" in exI)
       apply (simp add: append_inter)
       apply (subgoal_tac "perm (x \<otimes> y) ((ya @ y'a) \<otimes> y')")
-      apply (subst (asm) append_inter, simp_all)
+      apply (subst (asm) append_inter, simp_all add: perm_set_eq)
 
       apply (simp add: split_perm, safe, simp_all)
       apply (subgoal_tac "perm (x \<otimes> y) ((ya @ y'a) \<otimes> y')")
@@ -532,13 +541,13 @@ section{*List Operations. Permutations and Substitutions*}
       
 
     lemma [simp]: "perm x' x \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
-      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
       
     lemma [simp]: "perm x x' \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
-      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
 
     lemma [simp]: "perm x' x \<Longrightarrow> perm y y' \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
-      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_def, simp_all)
+      by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
 
       lemma diff_cons: "(x \<ominus> (a # y)) = (x \<ominus> [a] \<ominus> y)"
         by (induction x, simp_all)
@@ -557,18 +566,16 @@ section{*List Operations. Permutations and Substitutions*}
 
       (*move*)
       lemma perm_append: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> perm (x @ y) (x' @ y')"
-        by (simp add: perm_def)
+        by (simp add: perm_mset)
 
 
 
       lemma "x' = y @ a # y' \<Longrightarrow> perm x (y @ y') \<Longrightarrow> perm (a # x) x'"
-        by (simp add: perm_def)
+        by (simp add: perm_mset)
 
 
-      lemma perm_refl[simp]: "perm x x"
-        by (simp add: perm_def)
 
-      lemma perm_diff_eq[simp]: "perm y y' \<Longrightarrow> (x \<ominus> y) = (x \<ominus> y')"
+      lemma perm_diff_eq: "perm y y' \<Longrightarrow> (x \<ominus> y) = (x \<ominus> y')"
         apply (drule perm_set_eq)
         by (induction x, auto)
 
@@ -582,8 +589,8 @@ section{*List Operations. Permutations and Substitutions*}
       lemma [simp]: "B \<inter> A = {} \<Longrightarrow> x \<in> A \<Longrightarrow> x \<in> B \<Longrightarrow> False"
         by auto
 
-  lemma distinct_perm_set_eq: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm x y = (set x = set y)"
-        using perm_def set_eq_iff_mset_eq_distinct by blast
+lemma distinct_perm_set_eq: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm x y = (set x = set y)"
+  by (simp add: perm_mset set_eq_iff_mset_eq_distinct)
 
       lemma set_perm: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> set x = set y \<Longrightarrow> perm x y"
         by (simp add: distinct_perm_set_eq)
@@ -591,5 +598,62 @@ section{*List Operations. Permutations and Substitutions*}
       lemma distinct_perm_switch: "distinct x \<Longrightarrow> distinct y \<Longrightarrow> perm (x \<oplus> y) (y \<oplus> x)"
         apply (simp add: addvars_def)
         by (rule set_perm, simp_all add: set_diff, auto)
+lemma listinter_diff: "(x \<otimes> y) \<ominus> z = (x \<ominus> z) \<otimes> (y \<ominus> z)"
+  apply (induction x, simp_all)
+  by (simp add: set_diff)
+    
+lemma set_listinter: "set y = set z \<Longrightarrow> x \<otimes> y = x \<otimes> z"
+  by (induction x, simp_all)
+    
+lemma AAA_c: "a \<notin> set x \<Longrightarrow> x \<ominus> [a] = x"
+  by (induction x, simp_all, auto)
 
+lemma distinct_perm_cons: "distinct x \<Longrightarrow> perm (a # y) x \<Longrightarrow> perm y (x \<ominus> [a])"
+  apply (rule set_perm)
+    apply (meson dist_perm distinct.simps(2) perm_sym)
+   apply simp
+  proof -
+    assume a1: "distinct x"
+  assume a2: "perm (a # y) x"
+  then have "set (a # y) = set x"
+    by (meson perm_set_eq)
+  then show "set y = set (x \<ominus> [a])"
+    using a2 a1 by (metis (no_types) AAA_c diff.simps(2) dist_perm distinct.simps(2) list.set_intros(1) perm_sym set_diff)
+qed
+   
+lemma listinter_empty[simp]: " y \<otimes> [] = []"
+  by (induction y, simp_all)
+    
+
+lemma subsetset_inter: "set x \<subseteq> set y \<Longrightarrow> (x \<otimes> y) = x"
+  by (induction x, auto)
+
+  
+lemma addvars_addsame: "x \<oplus> y \<oplus> (x \<ominus> z) = x \<oplus> y"
+  by (metis ListProp.diff_eq ZZZ_a addvars_empty diff_addvars)
+
+lemma ZZZ: "x \<ominus> x \<oplus> y = []"
+  by (simp add: ListProp.diff_eq diff_addvars)
+
+lemma perm_dist_mem: "distinct x \<Longrightarrow> a \<in> set x \<Longrightarrow> perm (a # (x \<ominus> [a])) x"
+  by (metis Diff_iff distinct.simps(2) distinct_diff empty_set insert_Diff list.set(2) list.set_intros(1) set_diff set_perm) 
+
+
+lemma addvars_diff: "b # (x \<oplus> (z \<ominus> [b])) = (b # x) \<oplus> z"
+proof -
+  have "z \<ominus> [b] \<ominus> b # x = z \<ominus> [b] \<ominus> [] \<ominus> [b] \<ominus> x \<ominus> []"
+    by (metis diff_cons diff_emptyset)
+    then have f1: "x @ (z \<ominus> [b] \<ominus> b # x) = x \<oplus> (z \<ominus> [b] \<ominus> b # x)"
+      by (metis (no_types) ZZZ_a addvars_def diff_cons)
+    have "z \<ominus> [b] \<ominus> b # x = z \<ominus> [b] \<ominus> x \<ominus> [b]"
+      by (metis (no_types) diff_cons diff_sym)
+    then show ?thesis
+      using f1 by (metis (no_types) addvars_def append.simps(2) diff_cons)
+  qed
+
+    
+lemma perm_cons: "a \<in> set y \<Longrightarrow> distinct y \<Longrightarrow> perm x (y \<ominus> [a]) \<Longrightarrow> perm (a # x) y"
+  apply (rule set_perm, simp_all add: set_diff perm_set_eq, safe)
+  using dist_perm distinct_diff perm_sym by blast
+ 
 end

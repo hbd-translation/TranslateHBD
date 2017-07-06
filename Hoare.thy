@@ -33,6 +33,21 @@ section{*Hoare Total Correctness Rules.*}
     apply (rule fp_wf_induction, simp_all)
     by (drule lfp_unfold, simp)
 
+theorem lfp_wf_induction_b: "mono f \<Longrightarrow> (\<forall> w . (p w) \<le> f (Sup_less p w)) \<Longrightarrow> S \<le> (SUP a. p a) \<Longrightarrow> S \<le> lfp f"
+  apply (rule_tac y = "(SUP a. p a)" in order_trans)
+   apply simp
+    by (rule lfp_wf_induction, simp_all)
+
+lemma [simp]: "mono S \<Longrightarrow> mono (\<lambda>X. if_stm b (S \<circ> X) T)"
+  apply (simp add: if_stm_def mono_def le_fun_def)
+  apply auto
+  by (metis (no_types, lifting) assume_def dual_order.trans inf.coboundedI1 le_supI sup_ge1 sup_ge2)
+  
+lemma [simp]: "Sup_less (\<lambda>n x. t x = n) n = (\<lambda> x . (t x < n))"
+  by (simp add: Sup_less_def, auto)
+  
+lemma [simp]: "(SUP a. {.x .t x = a.} \<circ> S) = S"
+  by (simp add: fun_eq_iff assert_def)
    definition  "mono_mono F = (mono F \<and> (\<forall> f . mono f \<longrightarrow> mono (F f)))"
   
    
@@ -95,6 +110,11 @@ section{*Hoare Total Correctness Rules.*}
       then show "Sup {f. \<exists>b<w. f = {. p b .}} = (SUP a:{a. \<exists>b<w. a = p b}. {. a .})"
         by (metis setcompr_eq_image)
     qed
+
+lemma [simp]: "Sup_less (\<lambda>n. {.x. t x = n.} \<circ> S) n = {.x. t x < n.} \<circ> S"
+  apply (simp add: Sup_less_comp [THEN sym])
+  by (simp add: Sup_less_assert)
+
  
   theorem hoare_fixpoint:
     "mono_mono F \<Longrightarrow> 
@@ -114,12 +134,8 @@ section{*Hoare Total Correctness Rules.*}
     
 
   lemma [simp]: "mono x \<Longrightarrow> mono_mono (\<lambda>X . if_stm b (x \<circ> X) Skip)"
-    apply (simp add: mono_mono_def)
-    apply (simp add: mono_def, safe)
-    apply (simp add: if_stm_def assume_def, auto)
-    apply (metis le_fun_def predicate1D)
-    by (metis le_fun_def predicate1D)
-    
+    by (simp add: mono_mono_def)
+
   theorem hoare_sequential:
     "mono S \<Longrightarrow> (Hoare p (S o T) r) = ( (\<exists> q. Hoare p S q \<and> Hoare q T r))"
     by (metis (no_types) Hoare_def monoD o_def order_refl order_trans)
@@ -178,5 +194,10 @@ section{*Hoare Total Correctness Rules.*}
 
   lemma hoare_demonic: "(\<And> x y . p x \<Longrightarrow> r x y \<Longrightarrow> q y) \<Longrightarrow> Hoare p [:r:] q"
     by (simp add: Hoare_def demonic_def le_fun_def)
+      
+lemma refinement_hoare: "S \<le> T \<Longrightarrow> Hoare (p::'a::order) S (q) \<Longrightarrow> Hoare p T q"
+  apply (simp add: Hoare_def le_fun_def)
+  by (rule_tac y = "S q" in order_trans, simp_all)
+
 
 end

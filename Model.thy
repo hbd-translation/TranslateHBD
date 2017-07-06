@@ -1,4 +1,4 @@
-theory Model imports AbstractOperations Constructive
+theory Model imports AlgebraFeedback Constructive
 begin
   section{*Model of the HBD Algebra*}
 

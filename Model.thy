@@ -1,6 +1,7 @@
+section{*Model of the HBD Algebra*}
+
 theory Model imports AlgebraFeedback Constructive
 begin
-  section{*Model of the HBD Algebra*}
 
   datatype Types = int | bool | nat
 

@@ -1,6 +1,7 @@
+section{*Refinement Calculus.*}
+
 theory Refinement imports Main
 begin
-  section{*Monotonic Predicate Transformers. Refinement Calculus.*}
  
   notation
     bot ("\<bottom>") and

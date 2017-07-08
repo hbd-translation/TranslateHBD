@@ -1,3 +1,5 @@
+section{*Porperties used for proving the Feedbackless algorithm*}
+
 theory Feedbackless imports DiagramFeedbackless
 begin
   context BaseOperationFeedbacklessVars

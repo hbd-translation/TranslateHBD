@@ -1,6 +1,7 @@
+section{*Hoare Total Correctness Rules.*}
+
 theory Hoare imports Refinement
 begin
-section{*Hoare Total Correctness Rules.*}
   
    definition "if_stm p S T = ([.p.] o S) \<sqinter> ([.-p.] o T)"
    definition "while_stm p S = lfp (\<lambda> X . if_stm p (S o X) Skip)"
@@ -199,5 +200,9 @@ lemma refinement_hoare: "S \<le> T \<Longrightarrow> Hoare (p::'a::order) S (q) 
   apply (simp add: Hoare_def le_fun_def)
   by (rule_tac y = "S q" in order_trans, simp_all)
 
+lemma refinement_hoare_iff: "(S \<le> T) = (\<forall> p q . Hoare (p::'a::order) S (q) \<longrightarrow> Hoare p T q)"
+  apply safe
+   apply (rule refinement_hoare, simp_all)
+  by (simp add: Hoare_def le_fun_def)
 
 end

@@ -1,9 +1,9 @@
+section{*Abstract Algebra of  Hierarchical Block Diagrams (except one axiom for feedback)*}
+
 theory AlgebraFeedbackless imports ListProp
 begin
-  section{*Abstract Algebra of  Hierarchical Block Diagrams*}
   
-locale BaseOperationFeedbackless = 
-  
+locale BaseOperationFeedbackless =   
   (*Input output types*)
   fixes TI TO :: "'a \<Rightarrow> 'tp list"
 
@@ -1618,71 +1618,69 @@ lemma deterministicI: "distinct x \<Longrightarrow> distinct y \<Longrightarrow>
   [x \<leadsto> x @ x] oo A \<parallel> A = A oo [y \<leadsto> y @ y] \<Longrightarrow> deterministic A"
   by (simp add: deterministic_def Switch_Split)
     
-      lemma deterministic_switch: "distinct x \<Longrightarrow> set y \<subseteq> set x \<Longrightarrow> deterministic [x \<leadsto> y]"
-        by (simp add: deterministic_def switch_dup)
+lemma deterministic_switch: "distinct x \<Longrightarrow> set y \<subseteq> set x \<Longrightarrow> deterministic [x \<leadsto> y]"
+  by (simp add: deterministic_def switch_dup)
 
 
-      lemma deterministic_comp: "deterministic A \<Longrightarrow> deterministic B \<Longrightarrow> TO A = TI B \<Longrightarrow> deterministic (A oo B)"
-        apply (simp add: deterministic_def)
-        proof -
-          assume [simp]: "Split (TI A) oo A \<parallel> A = A oo Split (TI B)"
-          assume [simp]: "Split (TI B) oo B \<parallel> B = B oo Split (TO B)"
-          assume [simp]: "TO A = TI B"
+lemma deterministic_comp: "deterministic A \<Longrightarrow> deterministic B \<Longrightarrow> TO A = TI B \<Longrightarrow> deterministic (A oo B)"
+proof (simp add: deterministic_def) 
+  assume [simp]: "Split (TI A) oo A \<parallel> A = A oo Split (TI B)"
+  assume [simp]: "Split (TI B) oo B \<parallel> B = B oo Split (TO B)"
+  assume [simp]: "TO A = TI B"
 
-          have " A oo B oo Split (TO B) =
-                    A oo (B oo Split (TO B))"
-            by (subst comp_assoc, simp_all)
-          also have "... = A oo (Split (TI B) oo B \<parallel> B)"
-            by simp
-          also have "... = (A oo Split (TI B)) oo B \<parallel> B"
-            by (subst comp_assoc, simp_all)
-          also have "... = (Split (TI A) oo A \<parallel> A) oo B \<parallel> B"
-            by simp
-          also have "... = Split (TI A)  oo (A \<parallel> A oo B \<parallel> B)"
-            by (subst comp_assoc, simp_all)
-          also have "... = Split (TI A) oo (A oo B) \<parallel> (A oo B)"
-            by (simp add: comp_parallel_distrib)
-          
-          finally show "Split (TI A) oo (A oo B) \<parallel> (A oo B) =  A oo B oo Split (TO B)"
-            by simp
-        qed
+  have " A oo B oo Split (TO B) =
+            A oo (B oo Split (TO B))"
+    by (subst comp_assoc, simp_all)
+  also have "... = A oo (Split (TI B) oo B \<parallel> B)"
+    by simp
+  also have "... = (A oo Split (TI B)) oo B \<parallel> B"
+    by (subst comp_assoc, simp_all)
+  also have "... = (Split (TI A) oo A \<parallel> A) oo B \<parallel> B"
+    by simp
+  also have "... = Split (TI A)  oo (A \<parallel> A oo B \<parallel> B)"
+    by (subst comp_assoc, simp_all)
+  also have "... = Split (TI A) oo (A oo B) \<parallel> (A oo B)"
+    by (simp add: comp_parallel_distrib)
+  
+  finally show "Split (TI A) oo (A oo B) \<parallel> (A oo B) =  A oo B oo Split (TO B)"
+    by simp
+qed
 
+lemma deterministic_par: "deterministic A \<Longrightarrow> deterministic B \<Longrightarrow> deterministic (A \<parallel> B)"
+proof (simp add: deterministic_def)            
+  assume [simp]: "Split (TI A) oo A \<parallel> A = A oo Split (TO A)"
+  assume [simp]: "Split (TI B) oo B \<parallel> B = B oo Split (TO B)"
 
-      lemma deterministic_par: "deterministic A \<Longrightarrow> deterministic B \<Longrightarrow> deterministic (A \<parallel> B)"
-        apply (simp add: deterministic_def)            
-        proof -
-          assume [simp]: "Split (TI A) oo A \<parallel> A = A oo Split (TO A)"
-          assume [simp]: "Split (TI B) oo B \<parallel> B = B oo Split (TO B)"
+  have [simp]: "Split (TI A) \<parallel> Split (TI B) oo ID (TI A) \<parallel> ID (TI A @ TI B) \<parallel> ID (TI B) = Split (TI A) \<parallel> Split (TI B)"
+    proof -
+      have "TO (Split (TI A) \<parallel> Split (TI B)) = (TI A @ TI A) @ TI B @ TI B"
+        by simp
+      then show "Split (TI A) \<parallel> Split (TI B) oo ID (TI A) \<parallel> ID (TI A @ TI B) \<parallel> ID (TI B) = Split (TI A) \<parallel> Split (TI B)"
+        by (metis (no_types) append_assoc comp_id_right parallel_ID_sym)
+    qed
 
-          have [simp]: "Split (TI A) \<parallel> Split (TI B) oo ID (TI A) \<parallel> ID (TI A @ TI B) \<parallel> ID (TI B) = Split (TI A) \<parallel> Split (TI B)"
-            proof -
-              have "TO (Split (TI A) \<parallel> Split (TI B)) = (TI A @ TI A) @ TI B @ TI B"
-                by simp
-              then show "Split (TI A) \<parallel> Split (TI B) oo ID (TI A) \<parallel> ID (TI A @ TI B) \<parallel> ID (TI B) = Split (TI A) \<parallel> Split (TI B)"
-                by (metis (no_types) append_assoc comp_id_right parallel_ID_sym)
-            qed
+  have "Split (TI A @ TI B) oo A \<parallel> B \<parallel> (A \<parallel> B) = Split (TI A @ TI B) oo A \<parallel> (B \<parallel> A) \<parallel> B"
+    by (simp add: par_assoc)
+  also have "... = Split (TI A @ TI B) oo A \<parallel> (Switch (TI B) (TI A) oo A \<parallel> B oo Switch (TO A) (TO B)) \<parallel> B"
+    by (subst (2) switch_par_no_vars[THEN sym], simp_all)
+  also have "... =  Split (TI A @ TI B) oo ID (TI A) \<parallel> Switch (TI B) (TI A) \<parallel> ID (TI B) oo A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
+    by (simp add: comp_assoc comp_parallel_distrib)
+  also have "... =  Split (TI A) \<parallel> Split (TI B) oo (ID (TI A) \<parallel> Switch (TI A) (TI B) \<parallel> ID (TI B) oo ID (TI A) \<parallel> Switch (TI B) (TI A) \<parallel> ID (TI B)) oo A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
+    by (simp add: Split_append comp_assoc)
+  also have "... =  Split (TI A) \<parallel> Split (TI B) oo  A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
+    by (simp add: comp_parallel_distrib)
+  also have "... =  Split (TI A) \<parallel> Split (TI B) oo  (A \<parallel> A) \<parallel> (B \<parallel> B) oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
+    by (simp add: par_assoc)
+  also have "... = A \<parallel> B oo Split (TO A) \<parallel> Split (TO B) oo ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
+    by (simp add: comp_parallel_distrib)
+  also have "... = A \<parallel> B oo Split (TO A @ TO B)"
+    by (simp add: Split_append comp_assoc)
 
-          have "Split (TI A @ TI B) oo A \<parallel> B \<parallel> (A \<parallel> B) = Split (TI A @ TI B) oo A \<parallel> (B \<parallel> A) \<parallel> B"
-            by (simp add: par_assoc)
-          also have "... = Split (TI A @ TI B) oo A \<parallel> (Switch (TI B) (TI A) oo A \<parallel> B oo Switch (TO A) (TO B)) \<parallel> B"
-            by (subst (2) switch_par_no_vars[THEN sym], simp_all)
-          also have "... =  Split (TI A @ TI B) oo ID (TI A) \<parallel> Switch (TI B) (TI A) \<parallel> ID (TI B) oo A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
-            apply (simp add: comp_assoc)
-            by (simp add: comp_parallel_distrib)
-          also have "... =  Split (TI A) \<parallel> Split (TI B) oo (ID (TI A) \<parallel> Switch (TI A) (TI B) \<parallel> ID (TI B) oo ID (TI A) \<parallel> Switch (TI B) (TI A) \<parallel> ID (TI B)) oo A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
-            by (simp add: Split_append comp_assoc)
-          also have "... =  Split (TI A) \<parallel> Split (TI B) oo  A \<parallel> (A \<parallel> B) \<parallel> B oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
-            by (simp add: comp_parallel_distrib)
-          also have "... =  Split (TI A) \<parallel> Split (TI B) oo  (A \<parallel> A) \<parallel> (B \<parallel> B) oo  ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
-            by (simp add: par_assoc)
-          also have "... = A \<parallel> B oo Split (TO A) \<parallel> Split (TO B) oo ID (TO A) \<parallel> Switch (TO A) (TO B) \<parallel> ID (TO B)"
-            by (simp add: comp_parallel_distrib)
-          also have "... = A \<parallel> B oo Split (TO A @ TO B)"
-            by (simp add: Split_append comp_assoc)
-
-          finally show "Split (TI A @ TI B) oo A \<parallel> B \<parallel> (A \<parallel> B) =  A \<parallel> B oo Split (TO A @ TO B)"
-            by simp
-        qed
+  finally show "Split (TI A @ TI B) oo A \<parallel> B \<parallel> (A \<parallel> B) =  A \<parallel> B oo Split (TO A @ TO B)"
+    by simp
+qed
+  
+  
 end
   
 end

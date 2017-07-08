@@ -1,6 +1,7 @@
+section{*List Operations. Permutations and Substitutions*}
+
 theory ListProp imports Main "~~/src/HOL/Library/Permutation"
 begin
-section{*List Operations. Permutations and Substitutions*}
   
 lemma perm_mset: "perm x y = (mset x = mset y)"
   by (simp add: mset_eq_perm)

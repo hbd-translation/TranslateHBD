@@ -1,3 +1,5 @@
+section{*Abstract Algebra of  Hierarchical Block Diagrams with all axioms*}
+
 theory AlgebraFeedback imports AlgebraFeedbackless
 begin
   

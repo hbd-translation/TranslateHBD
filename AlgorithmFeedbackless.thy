@@ -1,6 +1,7 @@
+section{*Feedbackless Algorithm*}
+
 theory AlgorithmFeedbackless imports FeedbacklessPerm Hoare 
 begin
-section{*Feedbackless Algorithm.*}
 context BaseOperationFeedbacklessVars
 begin
 definition "WhileFeedbackless = 
@@ -20,13 +21,16 @@ lemma [simp]:"{.As. length (VarFB (Parallel_list As)) = w.} (TranslateHBDRec x) 
   apply (drule_tac x = y in spec, safe, simp)
   apply (drule_tac x = "[]" in spec, simp_all)
   by (simp add: internal_VarFB ok_fbless_def)
-    
-thm internal_fb_out_less_step
   
-thm BBB_a
-
-
-
+lemma internal_fb_less_step: "loop_free As \<Longrightarrow> Type_OK As \<Longrightarrow> A \<in> set As \<Longrightarrow> out A \<in> internal As \<Longrightarrow>  internal (fb_less_step A (As \<ominus> [A])) = internal As - {out A}"
+  by (metis fb_out_less_step_def internal_fb_out_less_step mem_get_comp_out mem_get_other_out)
+  
+  
+lemma ok_fbless_fb_less_step: "ok_fbless As \<Longrightarrow> A \<in> set As \<Longrightarrow> out A \<in> internal As \<Longrightarrow> ok_fbless (fb_less_step A (As \<ominus> [A]))"
+  apply (simp add: ok_fbless_def, safe)
+    apply (metis Deterministic_fb_out_less_step fb_out_less_step_def mem_get_comp_out mem_get_other_out)
+   apply (metis fb_out_less_step_def loop_free_fb_out_less_step mem_get_comp_out mem_get_other_out)
+    using Type_OK_fb_out_less_step_aux by blast
     
 lemma map_CompA_fb_out_less_step: "Deterministic As \<Longrightarrow>
             loop_free As \<Longrightarrow>
@@ -137,28 +141,25 @@ lemma Out_Parallel_fb_less: "\<And> As . Type_OK As \<Longrightarrow> loop_free 
 lemma io_diagram_distinct_VarFB: "io_diagram A \<Longrightarrow> distinct (VarFB A)"
   apply (simp add: VarFB_def)
   by (simp add: io_diagram_distinct(2))
-  
-
-lemma Hoare_TranslateHBDRec: "Hoare (\<lambda> As . As = As_init \<and> ok_fbless As) 
-    (TranslateHBDRec o [-(\<lambda> As . Parallel_list As)-]) 
-    (\<lambda> A . in_equiv (FB (Parallel_list As_init)) A)"
-proof (simp add: Hoare_def le_fun_def TranslateHBDRec_def update_def demonic_def assert_def ok_fbless_def, safe)
-  fix L
-  assume [simp]: "Deterministic As_init"
-  assume [simp]: "loop_free As_init"
-  assume [simp]: "Type_OK As_init"
-  assume P[simp]: "VarFB (Parallel_list As_init) <~~> L"
     
-  define X where "X = Parallel_list As_init"
-  define Y where "Y = Parallel_list (fb_less L As_init)"
+theorem fbless_correctness: "ok_fbless As \<Longrightarrow> perm (VarFB (Parallel_list As)) L \<Longrightarrow>
+    in_equiv (FB (Parallel_list As)) (Parallel_list (fb_less L As))"
+proof (simp add:  ok_fbless_def, safe)
+  assume [simp]: "Deterministic As"
+  assume [simp]: "loop_free As"
+  assume [simp]: "Type_OK As"
+  assume P[simp]: "VarFB (Parallel_list As) <~~> L"
     
-  have [simp]: "In (FB (Parallel_list As_init)) = InFB X"
+  define X where "X = Parallel_list As"
+  define Y where "Y = Parallel_list (fb_less L As)"
+    
+  have [simp]: "In (FB (Parallel_list As)) = InFB X"
     apply (simp add: X_def [THEN sym] Y_def [THEN sym])
     by (simp add: FB_def Let_def InFB_def [THEN sym] VarFB_def [THEN sym])
     
-  have [simp]: "In (FB (Parallel_list As_init)) <~~> In (Parallel_list (fb_less L As_init))"
+  have [simp]: "In (FB (Parallel_list As)) <~~> In (Parallel_list (fb_less L As))"
     apply (simp add:  Y_def [THEN sym])
-    by (rule_tac As = As_init and L = L in FB_fb_less(2), simp_all add: X_def Y_def)
+    by (rule_tac As = As and L = L in FB_fb_less(2), simp_all add: X_def Y_def)
       
   have length_VarFB_X: "length (VarFB X) =  length L"
     by (simp add: ListProp.perm_length X_def)
@@ -167,10 +168,10 @@ proof (simp add: Hoare_def le_fun_def TranslateHBDRec_def update_def demonic_def
     apply (simp add: X_def)
     by (rule fb_perm_eq_Parallel_list, simp_all)
     
-  have [simp]: " Trs (FB (Parallel_list As_init)) 
-      = [In (FB (Parallel_list As_init)) \<leadsto> In (Parallel_list (fb_less L As_init))] oo Trs (Parallel_list (fb_less L As_init))"
+  have [simp]: " Trs (FB (Parallel_list As)) 
+      = [In (FB (Parallel_list As)) \<leadsto> In (Parallel_list (fb_less L As))] oo Trs (Parallel_list (fb_less L As))"
     apply (simp add: Y_def [THEN sym])
-    apply (subst FB_fb_less(1) [THEN sym, of As_init _ L])
+    apply (subst FB_fb_less(1) [THEN sym, of As _ L])
           apply simp_all
       apply (simp add: X_def)
       apply (simp add: X_def)
@@ -179,12 +180,12 @@ proof (simp add: Hoare_def le_fun_def TranslateHBDRec_def update_def demonic_def
     using fb_perm_eq apply (simp add: fb_perm_eq_def)
     apply (drule_tac x = L in spec, safe)
      apply (simp_all add: length_VarFB_X OutFB_def)
-    using ListProp.perm_sym X_def \<open>VarFB (Parallel_list As_init) <~~> L\<close> by blast
+    using ListProp.perm_sym X_def \<open>VarFB (Parallel_list As) <~~> L\<close> by blast
       
-  have A: "distinct (VarFB (Parallel_list As_init))"
+  have A: "distinct (VarFB (Parallel_list As))"
     by (simp add: io_diagram_parallel_list)
 
-    have [simp]: "Out (FB (Parallel_list As_init)) = Out (Parallel_list (fb_less L As_init))"
+    have [simp]: "Out (FB (Parallel_list As)) = Out (Parallel_list (fb_less L As))"
       apply (simp add: FB_def Let_def X_def [THEN sym])
       apply (subst Out_Parallel_fb_less, simp_all)
       using A P
@@ -193,12 +194,18 @@ proof (simp add: Hoare_def le_fun_def TranslateHBDRec_def update_def demonic_def
         by (metis Out_Parallel P VarFB_def X_def perm_diff_eq)
         
       
-  show "in_equiv (FB (Parallel_list As_init)) (Parallel_list (fb_less L As_init))"
+  show "in_equiv (FB (Parallel_list As)) (Parallel_list (fb_less L As))"
     apply (simp add: in_equiv_def)
-    using \<open>In (FB (Parallel_list As_init)) <~~> In (Parallel_list (fb_less L As_init))\<close> by simp
+    using \<open>In (FB (Parallel_list As)) <~~> In (Parallel_list (fb_less L As))\<close> by simp
 qed
+
+lemma Hoare_TranslateHBDRec: "Hoare (\<lambda> As . As = As_init \<and> ok_fbless As) 
+    (TranslateHBDRec o [-(\<lambda> As . Parallel_list As)-]) 
+    (\<lambda> A . in_equiv (FB (Parallel_list As_init)) A)"
+  apply (simp add: Hoare_def le_fun_def TranslateHBDRec_def update_def demonic_def assert_def ok_fbless_def, safe)
+  by (rule fbless_correctness, simp_all add: ok_fbless_def)
         
-theorem FeedbacklessHBD_Correctness: "Hoare (\<lambda> As . As = As_init \<and> ok_fbless As) 
+theorem TranslateHBDFeedbacklessCorrectness: "Hoare (\<lambda> As . As = As_init \<and> ok_fbless As) 
     TranslateHBDFeedbackless
     (\<lambda> A . in_equiv (FB (Parallel_list As_init)) A)"
   apply (rule_tac S = "(TranslateHBDRec o [-(\<lambda> As . Parallel_list As)-]) " in  refinement_hoare)

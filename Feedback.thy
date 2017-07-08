@@ -1,3 +1,5 @@
+section{*Properties for proving the nondeterministic algorithm*}
+
 theory Feedback imports AlgebraFeedback FeedbacklessPerm
 begin
 context BaseOperationVars

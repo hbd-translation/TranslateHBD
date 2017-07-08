@@ -1,7 +1,7 @@
+section{*Diagrams with Named Inputs and Outputs*}
+
 theory DiagramFeedbackless imports AlgebraFeedbackless
 begin 
-
-section{*Diagrams with Named Inputs and Outputs*}
   
 text{*This file contains the definition and properties for the named input output diagrams*}
   
@@ -4476,7 +4476,7 @@ lemma internal_fb_out_less_step:
    apply (rule Type_OK_fb_out_less_step_new, simp_all)
   apply (subst internal_VarFB, simp_all)
   by (subst VarFB_fb_out_less_step_gen, simp_all add: set_diff)
-
+    
 end
 
 end

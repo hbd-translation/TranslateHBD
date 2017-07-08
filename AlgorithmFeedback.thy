@@ -1,7 +1,7 @@
+ section{*Nondeterministic Algorithm.*}
+  
 theory AlgorithmFeedback imports Feedback Hoare
 begin
-  
-  section{*Nondeterministic Algorithm.*}
   
 context BaseOperationVars
 begin
@@ -437,7 +437,7 @@ lemma AAAA_x[simp]: "io_distinct As_init \<Longrightarrow> Suc 0 \<le> length As
      apply (drule perm_length, simp)
      done
 
-  lemma CorrectnessTranslateHBD: "io_distinct As_init \<Longrightarrow> length As_init \<ge> 1 \<Longrightarrow> 
+  theorem CorrectnessTranslateHBD: "io_distinct As_init \<Longrightarrow> length As_init \<ge> 1 \<Longrightarrow> 
     Hoare (io_distinct \<sqinter> (\<lambda> As . As = As_init)) TranslateHBD (\<lambda> S . in_out_equiv S (FB (Parallel_list As_init)))"
     apply (simp add: TranslateHBD_def)
     apply (simp add: hoare_sequential)

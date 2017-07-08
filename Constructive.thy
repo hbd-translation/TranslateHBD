@@ -1,6 +1,7 @@
+section{*Constructive Functions*}
+
 theory Constructive imports Main
 begin
-  section{*Constructive Functions*}
 
   notation
     bot ("\<bottom>") and

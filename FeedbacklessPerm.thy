@@ -1,3 +1,5 @@
+section{*The order of internal states does not change the result of feedbackless*}
+
 theory FeedbacklessPerm imports Feedbackless
 begin
   context BaseOperationFeedbacklessVars
@@ -260,7 +262,8 @@ proof -
     Trs A \<parallel> [z \<ominus> [a] \<leadsto> z \<ominus> [a] ] oo
     [a # (z \<ominus> [a]) \<leadsto> z] =  
     (Trs B \<parallel> [x \<oplus> (z \<ominus> [a] \<ominus> [b]) \<leadsto> x \<oplus> (z \<ominus> [a] \<ominus> [b])] oo
-    [b # (x \<oplus> (z \<ominus> [a] \<ominus> [b])) \<leadsto> (b # x) @ (z \<ominus> [a] \<ominus> [b])]) oo [b # x  \<leadsto> x @ [b] ] \<parallel> [z \<ominus> [a] \<ominus> [b] \<leadsto> z \<ominus> [a] \<ominus> [b] ] oo ([x \<leadsto> x] \<parallel> [b # (z \<ominus> [a] \<ominus> [b]) \<leadsto> (z \<ominus> [a])] oo
+    [b # (x \<oplus> (z \<ominus> [a] \<ominus> [b])) \<leadsto> (b # x) @ (z \<ominus> [a] \<ominus> [b])]) 
+    oo [b # x  \<leadsto> x @ [b] ] \<parallel> [z \<ominus> [a] \<ominus> [b] \<leadsto> z \<ominus> [a] \<ominus> [b] ] oo ([x \<leadsto> x] \<parallel> [b # (z \<ominus> [a] \<ominus> [b]) \<leadsto> (z \<ominus> [a])] oo
     Trs A \<parallel> [z \<ominus> [a] \<leadsto> z \<ominus> [a] ]) oo
     [a # (z \<ominus> [a]) \<leadsto> z]"
       apply simp

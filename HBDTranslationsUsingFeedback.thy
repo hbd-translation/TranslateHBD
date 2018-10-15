@@ -276,7 +276,7 @@ lemma Parallel_list_append: "\<forall> A \<in> set As . io_diagram A \<Longright
      apply (rule perm_map, simp)
       using perm_set_eq by blast
 
-  lemma [simp]: "distinct (concat X) \<Longrightarrow> op_list [] op \<oplus> (X) = concat X"
+  lemma [simp]: "distinct (concat X) \<Longrightarrow> op_list [] (\<oplus>) (X) = concat X"
     apply (induction X, simp_all)
     by (simp add: addvars_distinct)
 

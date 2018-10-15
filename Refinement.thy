@@ -265,22 +265,22 @@ proof (simp add: fun_eq_iff assert_def rel_def demonic_def prec_def fail_def le_
   from this and A show "S \<top> xa"
     by blast
   fix xb
-  from mono have B: "\<not> x xb \<Longrightarrow> S x \<le> S (op \<noteq> xb)"
+  from mono have B: "\<not> x xb \<Longrightarrow> S x \<le> S ((\<noteq>) xb)"
     by (rule monoD, blast)
-  assume "\<not> S (op \<noteq> xb) xa"
+  assume "\<not> S ((\<noteq>) xb) xa"
   from this B C show "x xb"
     by blast
 next
   fix xa x
   assume  sconj: "sconjunctive S"
   assume B: "S \<top> xa"
-  assume D: "\<forall>xb. \<not> S (op \<noteq> xb) xa \<longrightarrow> x xb"
-  define Q where "Q = { op \<noteq> b | b . \<not> x b}"
+  assume D: "\<forall>xb. \<not> S ((\<noteq>) xb) xa \<longrightarrow> x xb"
+  define Q where "Q = { (\<noteq>) b | b . \<not> x b}"
   from sconj have A: "(\<exists>x. x \<in> Q) \<Longrightarrow> S (Inf Q) = (INF x:Q. S x)"
     by (simp add: sconjunctive_def)
   have C: "Inf Q = x"
     apply (simp add: Q_def fun_eq_iff, safe)
-    by (drule_tac x = "op \<noteq> xa" in spec, auto)
+    by (drule_tac x = "(\<noteq>) xa" in spec, auto)
   show "S x xa"
   proof cases
     assume "x = \<top>"
@@ -407,7 +407,7 @@ lemma sconj_Fail[simp]: "sconjunctive Fail"
 lemma sconjunctive_simp_c: "sconjunctive (S::('a \<Rightarrow> bool) \<Rightarrow> 'b \<Rightarrow> bool) \<Longrightarrow> prec S = \<bottom> \<Longrightarrow> S = Fail"
   by (drule sconjunctive_spec, simp add: Fail_assert_demonic [THEN sym])
 
-lemma demonic_eq_skip: "[: op = :] = Skip"
+lemma demonic_eq_skip: "[: (=) :] = Skip"
   apply (simp add: fun_eq_iff)
   by (metis (mono_tags) Skip_def demonic_def id_apply predicate1D predicate1I)
 
@@ -624,10 +624,10 @@ lemma Prod_Skip_spec: "Skip ** ({.p.} o [:r:]) = {.x,y . p y.} o [:x, y \<leadst
   by (auto simp add:assert_true_skip demonic_eq_skip)
 
  lemma Prod_skip_demonic: "Skip ** [:r:] = [:x, y \<leadsto> u, v . x = u \<and> r y v:]"
-  by (cut_tac r = "op =" and r' = r in Prod_demonic, simp add: demonic_eq_skip)    
+  by (cut_tac r = "(=)" and r' = r in Prod_demonic, simp add: demonic_eq_skip)    
 
  lemma Prod_demonic_skip: "[:r:] ** Skip = [:x, y \<leadsto> u, v . r x u \<and>  y = v:]"
-  by (cut_tac r' = "op =" and r = r in Prod_demonic, simp add: demonic_eq_skip)
+  by (cut_tac r' = "(=)" and r = r in Prod_demonic, simp add: demonic_eq_skip)
 
 lemma Prod_spec_demonic: "({.p.} o [:r:]) **  [:r':] = {.x, y . p x.} o [:x, y \<leadsto> u, v . r x u \<and> r' y v:]"
   by (cut_tac p = p and p' = \<top> and r = r and r' = r' in Prod_spec, simp add: assert_true_skip)
@@ -639,11 +639,11 @@ lemma pair_eq_demonic_skip: "[: \<lambda>(x, y) (u, v). x = u \<and> v = y :] = 
   by (simp add: fun_eq_iff demonic_def le_fun_def assert_def)
 
 lemma Prod_assert_skip: "{.p.} ** Skip = {.x,y . p x.}"
-  apply (cut_tac p = p and  r = "op =" in Prod_spec_Skip)
+  apply (cut_tac p = p and  r = "(=)" in Prod_spec_Skip)
   by (simp add: demonic_eq_skip pair_eq_demonic_skip)
 
 lemma Prod_skip_assert: "Skip ** {.p.} = {.x,y . p y.}"
-  apply (cut_tac p = p and  r = "op =" in Prod_Skip_spec)
+  apply (cut_tac p = p and  r = "(=)" in Prod_Skip_spec)
   by (simp add: demonic_eq_skip demonic_pair_skip)
     
 lemma fusion_comute: "S \<parallel> T = T \<parallel> S"
@@ -720,7 +720,7 @@ lemma [simp]: "(Fail::'a::boolean_algebra) \<le> S"
   by (simp add: Fail_def)
 
 lemma prod_skip_skip[simp]: "Skip ** Skip = Skip"
-  apply (cut_tac r = "op =" and r' = "op =" in Prod_demonic)
+  apply (cut_tac r = "(=)" and r' = "(=)" in Prod_demonic)
   by (simp add: demonic_eq_skip demonic_pair_skip)
 
 lemma fusion_prod: "S \<parallel> T = [:x \<leadsto> y, z . x = y \<and> x = z:] o Prod S T o [:y , z \<leadsto> x . y = x \<and> z = x:]"
@@ -793,19 +793,19 @@ lemma prod_skip_update: "Skip ** [-f-] = [- x, y \<leadsto> x, f y-]"
 
 lemma prod_assert_update_skip: "({.p.} o [-f-]) ** Skip = {.x,y . p x.} o [- x, y \<leadsto> f x, y-]"
   apply (simp add: update_def Prod_spec_Skip)
-  apply (rule_tac f = "op o  {. \<lambda>(x, y). p x .}" in  HOL.arg_cong)
+  apply (rule_tac f = "(o)  {. \<lambda>(x, y). p x .}" in  HOL.arg_cong)
   apply (rule_tac f = "demonic" in  HOL.arg_cong)
   by fast
 
 lemma prod_skip_assert_update: "Skip ** ({.p.} o [-f-]) = {.x,y . p y.} o [-\<lambda> (x, y) . (x, f y)-]"
   apply (simp add: update_def Prod_Skip_spec)
-  apply (rule_tac f = "op o  {. \<lambda>(x, y). p y .}" in  HOL.arg_cong)
+  apply (rule_tac f = "(o)  {. \<lambda>(x, y). p y .}" in  HOL.arg_cong)
   apply (rule_tac f = "demonic" in  HOL.arg_cong)
   by fast
 
 lemma prod_assert_update: "({.p.} o [-f-]) ** ({.p'.} o [-f'-]) = {.x,y . p x \<and> p' y.} o [-\<lambda> (x, y) . (f x, f' y)-]"
   apply (simp add: update_def Prod_spec)
-  apply (rule_tac f = "op o  {. \<lambda>(x, y). p x \<and> p' y .}" in  HOL.arg_cong)
+  apply (rule_tac f = "(o)  {. \<lambda>(x, y). p x \<and> p' y .}" in  HOL.arg_cong)
   apply (rule_tac f = "demonic" in  HOL.arg_cong)
   by (simp add: fun_eq_iff)
 
@@ -1173,33 +1173,33 @@ lemma data_refinement: "mono S' \<Longrightarrow> (\<forall> x a . \<exists> u .
 proof (simp add: fun_eq_iff demonic_def le_fun_def, safe)
   fix x xa b
   assume A: "\<forall>x a. \<exists>u. R x a u"
-  assume B: "\<forall>b. S ([: \<lambda>(y, v). op = y :] x) (xa, b)"
+  assume B: "\<forall>b. S ([: \<lambda>(y, v). (=) y :] x) (xa, b)"
   assume "\<forall>x a b. {:(x, a) \<leadsto> (x', u).x = x' \<and> R x a u:} (S x) (a, b) \<longrightarrow>
                       S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} x) (a, b)"
       
-  from this have C: "{:(x, a) \<leadsto> (x', u).x = x' \<and> R x a u:} (S ([: \<lambda>(y, v). op = y :] x)) (xa, b) \<Longrightarrow>
-                      S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). op = y :] x)) (xa, b)"
+  from this have C: "{:(x, a) \<leadsto> (x', u).x = x' \<and> R x a u:} (S ([: \<lambda>(y, v). (=) y :] x)) (xa, b) \<Longrightarrow>
+                      S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). (=) y :] x)) (xa, b)"
         
     by simp
   from A obtain u where "R xa b u"
     by blast
     
-  from this and B have "{:(x, a) \<leadsto> (x', u).x = x' \<and> R x a u:} (S ([: \<lambda>(y, v). op = y :] x)) (xa, b)"
+  from this and B have "{:(x, a) \<leadsto> (x', u).x = x' \<and> R x a u:} (S ([: \<lambda>(y, v). (=) y :] x)) (xa, b)"
     apply (simp add: angelic_def fun_eq_iff)
     by blast
       
-  from this and C have D: "S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). op = y :] x)) (xa, b)"
+  from this and C have D: "S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). (=) y :] x)) (xa, b)"
     by simp
       
-  have [simp]: "\<And> s t . {:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). op = y :] x) (s,t) 
-    \<Longrightarrow> [: \<lambda>(y, b). op = y :] x (s, t)"
+  have [simp]: "\<And> s t . {:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). (=) y :] x) (s,t) 
+    \<Longrightarrow> [: \<lambda>(y, b). (=) y :] x (s, t)"
     by (simp add: le_fun_def demonic_def angelic_def fun_eq_iff)
         
   assume "mono S'"
-  from this have "S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). op = y :] x)) \<le> S' ([: \<lambda>(y, b). op = y :] x)"
+  from this have "S' ({:(y, b) \<leadsto> (y', v).y = y' \<and> R' y b v:} ([: \<lambda>(y, v). (=) y :] x)) \<le> S' ([: \<lambda>(y, b). (=) y :] x)"
     by (rule monoD, simp add: le_fun_def)
     
-  from D and this show "S' ([: \<lambda>(y, b). op = y :] x) (xa, b)"
+  from D and this show "S' ([: \<lambda>(y, b). (=) y :] x) (xa, b)"
     by (simp add: le_fun_def)
 qed
 

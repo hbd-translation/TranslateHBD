@@ -6,8 +6,7 @@ begin
 locale BaseOperation = BaseOperationFeedbackless +
   assumes fb_twice_switch_no_vars: "TI S = t' # t # ts \<Longrightarrow> TO S = t' # t # ts'
       \<Longrightarrow> (fb ^^ (2::nat)) (Switch [t] [t'] \<parallel> ID ts oo S oo Switch [t'] [t] \<parallel> ID ts') = (fb ^^ (2:: nat)) S"
-    
-      
+
 locale BaseOperationVars = BaseOperation + BaseOperationFeedbacklessVars
 begin
 lemma fb_twice_switch: "distinct (a # b # x) \<Longrightarrow> distinct (a # b # y) \<Longrightarrow> TI S = TVs (b # a # x) \<Longrightarrow> TO S = TVs (b # a # y) 
@@ -176,9 +175,6 @@ next
             by (simp add: funpow_add funpow_swap1)
           finally show ?case
             by (simp)
-        qed     
-
+        qed
 end
-
-  
 end

@@ -977,9 +977,9 @@ lemma ParallelId_left: "io_diagram A \<Longrightarrow> \<box> ||| A = A"
   apply (subst comp_id_switch)
   by (simp_all add: io_diagram_def)
 
-definition "parallel_list = op_list (ID []) (op \<parallel>)"
+definition "parallel_list = op_list (ID []) (\<parallel>)"
   
-definition "Parallel_list = op_list \<box> (op |||)"
+definition "Parallel_list = op_list \<box> (|||)"
   
 lemma [simp]: "Parallel_list [] = \<box>"
   by (simp add: Parallel_list_def)
@@ -1074,10 +1074,10 @@ lemma Out_Parallel: "Out (Parallel_list As) = concat (map Out As)"
         by (case_tac "Out A", simp_all, auto)
 
 
-      lemma In_Parallel: "In (Parallel_list As) = op_list [] (op \<oplus>) (map In As)"
+      lemma In_Parallel: "In (Parallel_list As) = op_list [] (\<oplus>) (map In As)"
         by (induction As, simp_all)
 
-      lemma [simp]: "set (op_list [] op \<oplus> xs) = \<Union> set (map set xs)"
+      lemma [simp]: "set (op_list [] (\<oplus>) xs) = \<Union> set (map set xs)"
         apply (induction xs, simp_all)
         by (simp add: set_addvars)
 
@@ -1340,7 +1340,7 @@ proof -
   have [simp]: "concat (map Out (As \<ominus> [A])) = (concat (map Out As) \<ominus> [a])"
     by (metis \<open>get_other_out a As = As \<ominus> [A]\<close> assms(2) concat_map_Out_get_other_out)
       
-  have [simp]: "UNION (set (As \<ominus> [A])) (set \<circ> (In \<circ> CompA A)) = set (op_list [] op \<oplus> (map In As) \<ominus> [a])"
+  have [simp]: "UNION (set (As \<ominus> [A])) (set \<circ> (In \<circ> CompA A)) = set (op_list [] (\<oplus>) (map In As) \<ominus> [a])"
     apply (simp add: set_diff, simp, safe)
       apply (case_tac "out A \<in> set (In xa)")
        apply (simp add: CompA_def Comp_def Let_def set_addvars set_diff)
@@ -1480,7 +1480,7 @@ lemma perm_FB_Parallel[simp]: "loop_free As \<Longrightarrow> Type_OK As
         apply (simp add: concat_map_Out_get_other_out)
         by (metis diff_cons)
 
-      lemma TI_Parallel_list: "(\<forall> A \<in> set As . io_diagram A) \<Longrightarrow> TI (Trs (Parallel_list As)) = TVs (op_list [] op \<oplus> (map In As))"
+      lemma TI_Parallel_list: "(\<forall> A \<in> set As . io_diagram A) \<Longrightarrow> TI (Trs (Parallel_list As)) = TVs (op_list [] (\<oplus>) (map In As))"
         apply (induction As)
         apply simp
         apply (simp add: ParallelId_def)
@@ -4983,7 +4983,7 @@ lemma [simp]: "distinct (concat (map f As)) \<Longrightarrow> distinct (concat (
   by (simp add: set_diff, auto)
     
 
-lemma set_op_list_addvars: "set (op_list [] op \<oplus> x) = (\<Union> a \<in> set x . set a)"
+lemma set_op_list_addvars: "set (op_list [] (\<oplus>) x) = (\<Union> a \<in> set x . set a)"
   by (induction x, auto simp add: set_addvars)
     
           
@@ -7128,7 +7128,7 @@ proof (simp add: fb_perm_eq_def, safe)
 qed
   
 
-theorem FeedbackSerial_Feedbackless: "io_diagram A \<Longrightarrow> io_diagram B \<Longrightarrow> set (In A) \<inter> set (In B) = {} (*required*)
+theorem FeedbackSerial_Feedbackless: "io_diagram A \<Longrightarrow> io_diagram B \<Longrightarrow> set (In A) \<inter> set (In B) = {} \<comment> \<open>required\<close>
       \<Longrightarrow> set (Out A) \<inter> set (Out B) = {} \<Longrightarrow> fb_perm_eq (A ||| B) \<Longrightarrow> FB (A ||| B) = FB (FB (A) ;; FB (B))"
 proof -
   assume [simp]: "io_diagram A"

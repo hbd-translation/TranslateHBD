@@ -536,18 +536,18 @@ declare distinct_diff [simp]
 
     declare distinct_inter [simp]
 
-    lemma perm_ops: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+    lemma perm_ops: "perm x x' \<Longrightarrow> perm y y' \<Longrightarrow> f = (\<otimes>) \<or> f = (\<ominus>) \<or> f = (\<oplus>) \<Longrightarrow> perm (f x y) (f x' y')"
       apply safe
       by (simp_all)
       
 
-    lemma [simp]: "perm x' x \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+    lemma [simp]: "perm x' x \<Longrightarrow> perm y' y \<Longrightarrow> f = (\<otimes>) \<or> f = (\<ominus>) \<or> f = (\<oplus>) \<Longrightarrow> perm (f x y) (f x' y')"
       by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
       
-    lemma [simp]: "perm x x' \<Longrightarrow> perm y' y \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+    lemma [simp]: "perm x x' \<Longrightarrow> perm y' y \<Longrightarrow> f = (\<otimes>) \<or> f = (\<ominus>) \<or> f = (\<oplus>) \<Longrightarrow> perm (f x y) (f x' y')"
       by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
 
-    lemma [simp]: "perm x' x \<Longrightarrow> perm y y' \<Longrightarrow> f = op \<otimes> \<or> f = op \<ominus> \<or> f = op \<oplus> \<Longrightarrow> perm (f x y) (f x' y')"
+    lemma [simp]: "perm x' x \<Longrightarrow> perm y y' \<Longrightarrow> f = (\<otimes>) \<or> f = (\<ominus>) \<or> f = (\<oplus>) \<Longrightarrow> perm (f x y) (f x' y')"
       by (rule_tac x = x and y = y and x' = x' and y' = y' in perm_ops, unfold perm_mset, simp_all)
 
       lemma diff_cons: "(x \<ominus> (a # y)) = (x \<ominus> [a] \<ominus> y)"

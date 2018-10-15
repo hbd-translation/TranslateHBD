@@ -4,7 +4,7 @@ Hierarchical Block Diagram Translations
 These files contain the theories for "Mechanically Proving 
 Determinacy of  Hierarchical Block Diagram Translations"
 
-The files are for Isabelle 2017. 
+The files are for Isabelle 2018. 
 To see the files open them in Isabelle jedit. 
 
  
